@@ -10,19 +10,19 @@
   :root{
     --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --axis:#c3c2b7; --border:#e1e0d9;
-    --strom:#2a78d6; --gas:#eb6834; --temp:#1baf7a; --ce:#4a3aa7; --warnc:#fab219; --accent:#2a78d6; --error:#d03b3b;
+    --strom:#2a78d6; --gas:#eb6834; --temp:#1baf7a; --ce:#4a3aa7; --warnc:#fab219; --prev:#c3c2b7; --accent:#2a78d6; --error:#d03b3b;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-      --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --accent:#3987e5;
+      --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --prev:#52514e; --accent:#3987e5;
     }
   }
   :root[data-theme="dark"]{
     --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-    --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --accent:#3987e5;
+    --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --prev:#52514e; --accent:#3987e5;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -61,8 +61,10 @@
   .costgrid tbody td:nth-child(1),.costgrid tbody td:nth-child(2){white-space:normal}
   .costgrid tbody td:nth-child(2),.costgrid th:nth-child(2){text-align:left}
   .costgrid tfoot td{font-weight:650;border-top:1px solid var(--axis);border-bottom:0}
+  .costgrid tfoot td:last-child{text-align:right}
   .legend{display:flex;gap:14px;font-size:12px;color:var(--ink2);margin:-4px 0 8px}
   .legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--c)}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 8px}
   .hidden{display:none!important}
   #login{max-width:340px;margin:12vh auto 0}
   #login form{display:flex;flex-direction:column;gap:10px}
@@ -129,10 +131,38 @@
         <div class="card"><h2 id="tStrom">Strom</h2><div class="legend hidden" id="legStrom"><span style="--c:var(--strom)">Lieferant (Nordenergie)</span><span style="--c:var(--ce)">Energiegemeinschaft</span></div><div class="chartbox"><canvas id="cStrom"></canvas></div></div>
         <div class="card"><h2 id="tGas">Gas</h2><div class="chartbox"><canvas id="cGas"></canvas></div></div>
         <div class="card"><h2>Außentemperatur (°C)</h2><div class="chartbox"><canvas id="cTemp"></canvas></div></div>
+        <div class="card"><h2>Gasverbrauch je Tag gegen Tagesmitteltemperatur</h2>
+          <p class="hint">Jeder Punkt = ein Tag. Je steiler die Wolke nach links ansteigt, desto stärker hängt der Gasverbrauch von der Kälte ab.</p>
+          <div class="chartbox"><canvas id="cScatter"></canvas></div></div>
+        <div class="card"><h2>Tageslastprofil Strom – Ø Leistung je Uhrzeit (kW)</h2>
+          <p class="hint">Mittelwert über alle Tage des Zeitraums; im Tooltip zusätzlich der Höchstwert.</p>
+          <div class="chartbox"><canvas id="cProfil"></canvas></div></div>
+        <div class="card"><h2 id="tKosten">Kostenverlauf (€)</h2>
+          <div class="legend"><span style="--c:var(--strom)">Strom</span><span style="--c:var(--gas)">Gas</span></div>
+          <div class="chartbox"><canvas id="cKosten"></canvas></div></div>
       </div>
       <div class="costgrid">
         <div class="card"><h2>Kosten Strom – Aufschlüsselung</h2><div class="tablewrap"><table id="kStrom"></table></div></div>
         <div class="card"><h2>Kosten Gas – Aufschlüsselung</h2><div class="tablewrap"><table id="kGas"></table></div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Monatsvergleich</h2>
+        <div class="controls" style="margin-bottom:8px">
+          <label>Jahr <select id="mYear"></select></label>
+          <label>Wert
+            <select id="mMetric">
+              <option value="kwh">Strom (kWh)</option>
+              <option value="m3">Gas (m³)</option>
+              <option value="kosten">Kosten gesamt (€)</option>
+              <option value="kStrom">Kosten Strom (€)</option>
+              <option value="kGas">Kosten Gas (€)</option>
+            </select>
+          </label>
+          <button type="button" id="mLoad">Anzeigen</button>
+          <span class="hint" id="mMsg">Beim ersten Abruf eines Jahres kann es 1–2 Minuten dauern.</span>
+        </div>
+        <div class="legend hidden" id="mLeg"><span id="mLegPrev" style="--c:var(--prev)"></span><span id="mLegCur" style="--c:var(--strom)"></span></div>
+        <div class="chartbox hidden" id="mBox"><canvas id="cMonate"></canvas></div>
       </div>
       <div class="card">
         <h2>Tageswerte</h2>
@@ -218,7 +248,7 @@ $('loginForm').addEventListener('submit', async e => {
   } finally { $('loginBtn').disabled = false; }
 });
 $('logout').addEventListener('click', () => {
-  tokenStore.clear(); token = null;
+  tokenStore.clear(); token = null; monCache = {};
   $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pw').value = '';
 });
 function showApp() {
@@ -324,6 +354,48 @@ function render(d) {
   drawChart('cTemp', 'line', d.wetter.map(r => fmtLabel(r[0], d.gasRes)), [{ data: d.wetter.map(r => r[1]), color: css('--temp') }], '°C',
     i => [`min ${nf(d.wetter[i][2], 1)} / max ${nf(d.wetter[i][3], 1)} °C`, wmo(d.wetter[i][4])]);
 
+  // Gas gegen Temperatur (Punktwolke je Tag)
+  const pts = d.tage.filter(t => t.tavg != null && t.m3 != null && t.vollstaendig > 0.9).map(t => ({ x: t.tavg, y: t.m3, datum: t.datum }));
+  if (charts.cScatter) charts.cScatter.destroy();
+  charts.cScatter = new Chart($('cScatter'), {
+    type: 'scatter',
+    data: { datasets: [{ data: pts, backgroundColor: css('--gas'), borderColor: css('--surface'), borderWidth: 2, pointRadius: 5, pointHoverRadius: 7 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: c => `${fmtDate(c.raw.datum)}: ${nf(c.raw.y, 2)} m³ bei Ø ${nf(c.raw.x, 1)} °C` } } },
+      scales: {
+        x: { title: { display: true, text: 'Ø Außentemperatur (°C)', color: css('--muted') }, grid: { color: css('--grid') }, ticks: { color: css('--muted') } },
+        y: { beginAtZero: true, title: { display: true, text: 'Gas (m³/Tag)', color: css('--muted') }, grid: { color: css('--grid') }, ticks: { color: css('--muted') }, border: { display: false } }
+      }
+    }
+  });
+
+  // Tageslastprofil
+  drawChart('cProfil', 'line', d.profil.map(r => r[0]), [{ data: d.profil.map(r => r[1]), color: css('--strom') }], 'kW',
+    i => [`Höchstwert: ${nf(d.profil[i][2], 2)} kW`]);
+
+  // Kostenverlauf (Tag, ab 63 Tagen pro Monat)
+  let kl = [], ks = [], kg = [];
+  if (d.tage.length > 62) {
+    const mm = new Map();
+    d.tage.forEach(t => {
+      const k = t.datum.slice(0, 7);
+      const m = mm.get(k) || mm.set(k, { s: null, g: null }).get(k);
+      if (t.kostenStrom != null) m.s = (m.s || 0) + t.kostenStrom;
+      if (t.kostenGas != null) m.g = (m.g || 0) + t.kostenGas;
+    });
+    mm.forEach((v, k) => { kl.push(MONATE[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4)); ks.push(v.s); kg.push(v.g); });
+    $('tKosten').textContent = 'Kostenverlauf pro Monat (€)';
+  } else {
+    d.tage.forEach(t => { kl.push(fmtLabel(t.datum, 'day')); ks.push(t.kostenStrom); kg.push(t.kostenGas); });
+    $('tKosten').textContent = 'Kostenverlauf pro Tag (€)';
+  }
+  drawChart('cKosten', 'bar', kl, [
+    { label: 'Strom', data: ks, color: css('--strom') },
+    { label: 'Gas', data: kg, color: css('--gas') }
+  ], '€', i => [`Gesamt: ${eur((ks[i] || 0) + (kg[i] || 0))}`], true);
+
   // Kostenaufschlüsselung
   const costTable = (rows, sum) => `<thead><tr><th>Posten</th><th>Basis</th><th>Menge</th><th>Preis brutto</th><th>Betrag</th></tr></thead>
     <tbody>${rows.map(p => `<tr><td>${esc(p.posten)}</td><td>${esc(p.basis)}</td><td>${nf(p.menge, 2)}</td>
@@ -343,6 +415,41 @@ function render(d) {
   $('tbl').innerHTML = `<thead><tr><th>Datum</th><th>Wetter (stärkstes)</th><th>T min °C</th><th>T max °C</th>
       <th>Strom kWh</th><th>davon Gem. kWh</th><th>Spitze kW</th><th>Gas m³</th><th>Gas kWh</th><th>Strom €</th><th>Gas €</th></tr></thead><tbody>${rows}</tbody>`;
   $('result').classList.remove('hidden');
+}
+
+const MONATE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+// ── Monatsvergleich ──
+let monCache = {};
+(function initYears() {
+  const y = new Date().getFullYear();
+  $('mYear').innerHTML = [0, 1, 2, 3].map(i => `<option>${y - i}</option>`).join('');
+})();
+$('mLoad').addEventListener('click', async () => {
+  const y = Number($('mYear').value);
+  $('mLoad').disabled = true; $('mMsg').textContent = 'Lade …';
+  try {
+    monCache[y] = monCache[y] || await api({ action: 'monate', year: y });
+    $('mMsg').textContent = monCache[y].warnungen.length ? '⚠ ' + monCache[y].warnungen.join(' · ') : '';
+    drawMonths();
+  } catch (err) {
+    $('mMsg').textContent = err.message;
+  } finally { $('mLoad').disabled = false; }
+});
+$('mMetric').addEventListener('change', () => { if (monCache[$('mYear').value]) drawMonths(); });
+function drawMonths() {
+  const y = Number($('mYear').value), r = monCache[y], m = $('mMetric').value;
+  const val = x => x == null ? null : m === 'kosten' ? (x.kStrom == null && x.kGas == null ? null : (x.kStrom || 0) + (x.kGas || 0)) : x[m];
+  const unit = m === 'kwh' ? 'kWh' : m === 'm3' ? 'm³' : '€';
+  const color = m === 'm3' || m === 'kGas' ? css('--gas') : css('--strom');
+  $('mLegPrev').textContent = y - 1; $('mLegCur').textContent = y;
+  $('mLegCur').style.setProperty('--c', color);
+  $('mLeg').classList.remove('hidden'); $('mBox').classList.remove('hidden');
+  const prev = r.jahre[y - 1].map(val), cur = r.jahre[y].map(val);
+  drawChart('cMonate', 'bar', MONATE, [
+    { label: String(y - 1), data: prev, color: css('--prev') },
+    { label: String(y), data: cur, color }
+  ], unit, i => prev[i] && cur[i] ? [`Änderung: ${cur[i] >= prev[i] ? '+' : ''}${nf((cur[i] / prev[i] - 1) * 100, 1)} %`] : []);
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -365,12 +472,12 @@ function drawChart(id, type, labels, series, unit, extra, stacked) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: {
-          label: c => `${c.dataset.label ? c.dataset.label + ': ' : ''}${nf(c.parsed.y, unit === '°C' ? 1 : 2)} ${unit}`,
+          label: c => c.parsed.y == null ? null : `${c.dataset.label ? c.dataset.label + ': ' : ''}${unit === '€' ? eur(c.parsed.y) : nf(c.parsed.y, unit === '°C' ? 1 : 2) + ' ' + unit}`,
           footer: items => items.length ? extra(items[0].dataIndex) : []
         }}
       },
       scales: {
-        x: { stacked: !!stacked, grid: { display: false }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, border: { color: css('--axis') } },
+        x: { stacked: !!stacked, grid: { display: false }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, border: { color: css('--axis') } },
         y: { stacked: !!stacked, beginAtZero: unit !== '°C', grid: { color: grid }, ticks: { color: muted }, border: { display: false } }
       }
     }

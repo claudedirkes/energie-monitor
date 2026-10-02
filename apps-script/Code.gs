@@ -162,6 +162,7 @@ function doPost(e) {
       checkAuth_(req);
       if (req.action === 'ping') out = {};
       else if (req.action === 'data') out = getData_(req.from, req.to, req.res || 'auto');
+      else if (req.action === 'monate') out = getMonths_(Number(req.year));
       else throw new Error('Unbekannte Aktion');
     }
     out.ok = true;
@@ -242,6 +243,15 @@ function getData_(from, to, res) {
     return dayCache[h] || (dayCache[h] = Utilities.formatDate(new Date(t), TZ, 'yyyy-MM-dd'));
   };
   const bucket = (t, r) => r === '15min' ? t : r === 'hour' ? Math.floor(t / 3600000) * 3600000 : dayOf(t);
+  // Viertelstunde des Tages (0–95) in Lokalzeit – Offset pro Stunde gecacht
+  const offCache = {};
+  const slotOf = t => {
+    const h = Math.floor(t / 3600000);
+    const off = offCache[h] !== undefined ? offCache[h] : (offCache[h] = offsetMin_(t));
+    const local = t + off * 60000;
+    return Math.floor((((local % 86400000) + 86400000) % 86400000) / 900000);
+  };
+  const prof = Array.from({ length: 96 }, () => ({ s: 0, n: 0, max: null }));
 
   const D = new Map();
   days.forEach(d => D.set(d, {
@@ -264,6 +274,9 @@ function getData_(from, to, res) {
     d.kwh += e; d.rest += r; d.geteilt += g; d.n15++;
     if (d.peak === null || kw > d.peak) d.peak = kw;
     if (peak === null || kw > peak) { peak = kw; peakT = t; }
+    const pr = prof[slotOf(t)];
+    pr.s += kw; pr.n++;
+    if (pr.max === null || kw > pr.max) pr.max = kw;
     const k = bucket(t, res);
     const b = sB.get(k) || sB.set(k, { kwh: 0, rest: 0, geteilt: 0, peak: null, peakT: null }).get(k);
     b.kwh += e; b.rest += r; b.geteilt += g;
@@ -376,6 +389,8 @@ function getData_(from, to, res) {
     kosten: { Strom: postenList('Strom'), Gas: postenList('Gas') },
     strom: [...sB.entries()].map(([k, b]) => [label(k), r3(b.kwh), r3(b.peak), label(b.peakT), r3(b.rest), r3(b.geteilt)]),
     gas: [...gB.entries()].map(([k, b]) => [label(k), r3(b.m3), r3(b.kwh)]),
+    profil: prof.map((x, i) => [String(Math.floor(i / 4)).padStart(2, '0') + ':' + String((i % 4) * 15).padStart(2, '0'),
+      x.n ? r3(x.s / x.n) : null, r3(x.max)]),
     wetter: [...wB.entries()].map(([k, b]) => [label(k), r2(b.s / b.n), b.min, b.max, b.code]),
     tage: days.map(day => {
       const x = D.get(day);
@@ -387,6 +402,29 @@ function getData_(from, to, res) {
       };
     })
   };
+}
+
+/** Monatssummen für ein Jahr und das Vorjahr (Strom kWh, Gas m³/kWh, Kosten). */
+function getMonths_(year) {
+  const now = Number(today_().slice(0, 4));
+  if (!(year >= 2000 && year <= now)) throw new Error('Ungültiges Jahr');
+  const out = { year: year, jahre: {}, warnungen: [] };
+  [year - 1, year].forEach(y => {
+    const months = Array.from({ length: 12 }, () => ({ kwh: 0, geteilt: 0, m3: 0, gkwh: 0, kStrom: null, kGas: null, tage: 0 }));
+    if (y + '-01-01' <= today_()) {
+      const r = getData_(y + '-01-01', y + '-12-31', 'day');
+      r.tage.forEach(t => {
+        const m = months[Number(t.datum.slice(5, 7)) - 1];
+        m.kwh += t.kwh || 0; m.geteilt += t.geteilt || 0; m.m3 += t.m3 || 0; m.gkwh += t.gkwh || 0; m.tage++;
+        if (t.kostenStrom != null) m.kStrom = (m.kStrom || 0) + t.kostenStrom;
+        if (t.kostenGas != null) m.kGas = (m.kGas || 0) + t.kostenGas;
+      });
+      r.warnungen.forEach(w => out.warnungen.push(y + ': ' + w));
+    }
+    const r2 = x => x == null ? null : Math.round(x * 100) / 100;
+    out.jahre[y] = months.map(m => m.tage ? { kwh: r2(m.kwh), geteilt: r2(m.geteilt), m3: r2(m.m3), gkwh: r2(m.gkwh), kStrom: r2(m.kStrom), kGas: r2(m.kGas) } : null);
+  });
+  return out;
 }
 
 // ───────────────────────── Preise ─────────────────────────
