@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Energie-Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:#e1e0d9;
+    --strom:#2a78d6; --gas:#eb6834; --temp:#1baf7a; --ce:#4a3aa7; --warnc:#fab219; --accent:#2a78d6; --error:#d03b3b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
+      --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --accent:#3987e5;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
+    --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --accent:#3987e5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+  h2{font-size:15px;margin:0 0 10px;font-weight:600}
+  .sub{color:var(--ink2);margin:0 0 18px;font-size:13px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:16px}
+  .controls label{display:flex;flex-direction:column;font-size:12px;color:var(--ink2);gap:4px}
+  input,select,button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--axis);border-radius:7px;padding:7px 10px}
+  button{cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button:disabled{opacity:.5;cursor:default}
+  .presets{display:flex;flex-wrap:wrap;gap:6px}
+  .presets button{padding:5px 9px;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .kpi .l{font-size:12px;color:var(--ink2)}
+  .kpi .v{font-size:24px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:13px;font-weight:500;color:var(--ink2);margin-left:3px}
+  .kpi .h{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+  .charts{display:grid;gap:12px;margin-bottom:16px}
+  .chartbox{position:relative;height:260px}
+  table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
+  .tablewrap{max-height:480px;overflow:auto}
+  .msg{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:14px}
+  .msg.err{border:1px solid var(--error);color:var(--error)}
+  .msg.info{border:1px solid var(--axis);color:var(--ink2)}
+  .msg.warn{border:1px solid var(--warnc);color:var(--ink)}
+  .msg.warn ul{margin:4px 0 0;padding-left:18px}
+  .costgrid{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}
+  .costgrid tbody td:nth-child(1),.costgrid tbody td:nth-child(2){white-space:normal}
+  .costgrid tbody td:nth-child(2),.costgrid th:nth-child(2){text-align:left}
+  .costgrid tfoot td{font-weight:650;border-top:1px solid var(--axis);border-bottom:0}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--ink2);margin:-4px 0 8px}
+  .legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--c)}
+  .hidden{display:none!important}
+  #login{max-width:340px;margin:12vh auto 0}
+  #login form{display:flex;flex-direction:column;gap:10px}
+  .top{display:flex;justify-content:space-between;align-items:start;gap:12px}
+  .muted{color:var(--muted)}
+  @media (max-width:600px){ .kpi .v{font-size:20px} .chartbox{height:220px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Login -->
+  <div id="login" class="card">
+    <h1>Energie-Monitor</h1>
+    <p class="sub">Strom · Gas · Wetter (Leneda)</p>
+    <form id="loginForm">
+      <input type="password" id="pw" placeholder="Passwort" autocomplete="current-password" required>
+      <button class="primary" type="submit" id="loginBtn">Anmelden</button>
+      <div id="loginMsg" class="msg err hidden"></div>
+    </form>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+    <div class="top">
+      <div>
+        <h1>Energie-Monitor</h1>
+        <p class="sub" id="subtitle">Zeitraum wählen und laden</p>
+      </div>
+      <button id="logout" type="button">Abmelden</button>
+    </div>
+
+    <div class="card controls">
+      <label>Von <input type="date" id="from"></label>
+      <label>Bis <input type="date" id="to"></label>
+      <label>Auflösung
+        <select id="res">
+          <option value="auto">Automatisch</option>
+          <option value="15min">15 Minuten</option>
+          <option value="hour">Stunde</option>
+          <option value="day">Tag</option>
+        </select>
+      </label>
+      <button class="primary" id="load" type="button">Laden</button>
+      <div class="presets">
+        <button type="button" data-p="gestern">Gestern</button>
+        <button type="button" data-p="7">7 Tage</button>
+        <button type="button" data-p="30">30 Tage</button>
+        <button type="button" data-p="monat">Dieser Monat</button>
+        <button type="button" data-p="vormonat">Letzter Monat</button>
+        <button type="button" data-p="jahr">Dieses Jahr</button>
+      </div>
+    </div>
+
+    <div id="msg" class="msg hidden"></div>
+
+    <div id="result" class="hidden">
+      <div id="warn" class="msg warn hidden"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="charts">
+        <div class="card"><h2 id="tStrom">Strom</h2><div class="legend hidden" id="legStrom"><span style="--c:var(--strom)">Lieferant (Nordenergie)</span><span style="--c:var(--ce)">Energiegemeinschaft</span></div><div class="chartbox"><canvas id="cStrom"></canvas></div></div>
+        <div class="card"><h2 id="tGas">Gas</h2><div class="chartbox"><canvas id="cGas"></canvas></div></div>
+        <div class="card"><h2>Außentemperatur (°C)</h2><div class="chartbox"><canvas id="cTemp"></canvas></div></div>
+      </div>
+      <div class="costgrid">
+        <div class="card"><h2>Kosten Strom – Aufschlüsselung</h2><div class="tablewrap"><table id="kStrom"></table></div></div>
+        <div class="card"><h2>Kosten Gas – Aufschlüsselung</h2><div class="tablewrap"><table id="kGas"></table></div></div>
+      </div>
+      <div class="card">
+        <h2>Tageswerte</h2>
+        <div class="tablewrap"><table id="tbl"></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ KONFIGURATION ═══════════════════════════════════════════
+const API_URL = 'HIER_DIE_APPS_SCRIPT_WEBAPP_URL_EINTRAGEN';
+// ═════════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const nf = (x, d = 1) => x == null ? '–' : x.toLocaleString('de-LU', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = x => x == null ? '–' : x.toLocaleString('de-LU', { style: 'currency', currency: 'EUR' });
+const store = {
+  get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+};
+let password = store.get('pw');
+const charts = {};
+
+const WMO = {
+  0: ['☀️', 'Klar'], 1: ['🌤️', 'Überwiegend klar'], 2: ['⛅', 'Teilweise bewölkt'], 3: ['☁️', 'Bedeckt'],
+  45: ['🌫️', 'Nebel'], 48: ['🌫️', 'Reifnebel'],
+  51: ['🌦️', 'Leichter Niesel'], 53: ['🌦️', 'Niesel'], 55: ['🌦️', 'Starker Niesel'],
+  56: ['🧊', 'Gefrierender Niesel'], 57: ['🧊', 'Gefrierender Niesel'],
+  61: ['🌧️', 'Leichter Regen'], 63: ['🌧️', 'Regen'], 65: ['🌧️', 'Starker Regen'],
+  66: ['🧊', 'Gefrierender Regen'], 67: ['🧊', 'Gefrierender Regen'],
+  71: ['🌨️', 'Leichter Schnee'], 73: ['🌨️', 'Schnee'], 75: ['🌨️', 'Starker Schnee'], 77: ['🌨️', 'Schneegriesel'],
+  80: ['🌦️', 'Regenschauer'], 81: ['🌦️', 'Regenschauer'], 82: ['⛈️', 'Heftige Schauer'],
+  85: ['🌨️', 'Schneeschauer'], 86: ['🌨️', 'Schneeschauer'],
+  95: ['⛈️', 'Gewitter'], 96: ['⛈️', 'Gewitter mit Hagel'], 99: ['⛈️', 'Gewitter mit Hagel']
+};
+const wmo = c => (c === null || c === '' || c === undefined) ? '–' : (WMO[c] ? WMO[c].join(' ') : 'Code ' + c);
+
+async function api(body) {
+  if (API_URL.startsWith('HIER_')) throw new Error('API_URL in index.html ist noch nicht eingetragen.');
+  // Content-Type text/plain → kein CORS-Preflight, Apps Script akzeptiert das
+  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ ...body, password }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Unbekannter Fehler');
+  return j;
+}
+
+function showMsg(text, type = 'err') {
+  const m = $('msg');
+  m.textContent = text; m.className = 'msg ' + type;
+}
+function hideMsg() { $('msg').className = 'msg hidden'; }
+
+// ── Login ──
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  password = $('pw').value;
+  $('loginBtn').disabled = true;
+  $('loginMsg').classList.add('hidden');
+  try {
+    await api({ action: 'ping' });
+    store.set('pw', password);
+    showApp();
+  } catch (err) {
+    $('loginMsg').textContent = err.message;
+    $('loginMsg').classList.remove('hidden');
+  } finally { $('loginBtn').disabled = false; }
+});
+$('logout').addEventListener('click', () => {
+  store.del('pw'); password = null;
+  $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pw').value = '';
+});
+function showApp() {
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+}
+
+// ── Zeitraum ──
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function preset(p) {
+  const t = new Date(); t.setHours(12, 0, 0, 0);
+  const y = new Date(t); y.setDate(y.getDate() - 1);
+  let f = new Date(y), to = new Date(y);
+  if (p === '7') f.setDate(y.getDate() - 6);
+  else if (p === '30') f.setDate(y.getDate() - 29);
+  else if (p === 'monat') { f = new Date(t.getFullYear(), t.getMonth(), 1, 12); }
+  else if (p === 'vormonat') { f = new Date(t.getFullYear(), t.getMonth() - 1, 1, 12); to = new Date(t.getFullYear(), t.getMonth(), 0, 12); }
+  else if (p === 'jahr') { f = new Date(t.getFullYear(), 0, 1, 12); }
+  if (f > to) f = new Date(to);
+  $('from').value = iso(f); $('to').value = iso(to);
+}
+document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { preset(b.dataset.p); load(); }));
+$('load').addEventListener('click', load);
+
+async function load() {
+  const from = $('from').value, to = $('to').value;
+  if (!from || !to) return showMsg('Bitte Von und Bis wählen.');
+  $('load').disabled = true;
+  showMsg('Lade Daten … beim ersten Abruf eines langen Zeitraums kann das bis zu einer Minute dauern.', 'info');
+  try {
+    const d = await api({ action: 'data', from, to, res: $('res').value });
+    hideMsg();
+    render(d);
+  } catch (err) {
+    showMsg(err.message);
+    if (/Passwort/.test(err.message)) $('logout').click();
+  } finally { $('load').disabled = false; }
+}
+
+// ── Darstellung ──
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const resName = { '15min': '15 Minuten', hour: 'Stunde', day: 'Tag' };
+const fmtLabel = (s, res) => {
+  const [d, t] = s.split(' ');
+  const [Y, M, D] = d.split('-');
+  if (res === 'day') return D + '.' + M + '.';
+  return D + '.' + M + '. ' + (t || '');
+};
+
+function kpi(label, value, unit, hint, color) {
+  return `<div class="card kpi"><div class="l">${color ? `<span class="sw" style="background:${color}"></span>` : ''}${label}</div>
+    <div class="v">${value}${unit ? `<small>${unit}</small>` : ''}</div>${hint ? `<div class="h">${hint}</div>` : ''}</div>`;
+}
+
+function render(d) {
+  const k = d.kpi;
+  const fmtDate = s => s.split('-').reverse().join('.');
+  $('subtitle').textContent = `${fmtDate(d.from)} – ${fmtDate(d.to)} · ${d.days} Tag${d.days > 1 ? 'e' : ''} · Auflösung: ${resName[d.res]}`;
+
+  // Warnungen
+  const w = $('warn');
+  if (d.warnungen && d.warnungen.length) {
+    w.innerHTML = '<strong>⚠ Hinweise</strong><ul>' + d.warnungen.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
+    w.classList.remove('hidden');
+  } else w.classList.add('hidden');
+
+  const voll = v => v != null && v < 0.98 ? `⚠ nur ${Math.round(v * 100)} % der Werte vorhanden` : '';
+  const total = (k.stromKosten || 0) + (k.gasKosten || 0);
+  const ct = (eurv, kwh) => eurv != null && kwh ? `Ø ${nf(eurv / kwh * 100, 1)} ct/kWh` : '';
+  const unv = ok => ok ? '' : ' ⚠ unvollständig';
+  $('kpis').innerHTML =
+    kpi('Strom gesamt', nf(k.stromKwh, 1), 'kWh', voll(k.stromVollstaendig) || `Lieferant ${nf(k.stromRestKwh, 0)} · Gemeinschaft ${nf(k.stromGeteiltKwh, 0)} kWh`, css('--strom')) +
+    kpi('Stromspitze (15 min)', nf(k.peakKw, 2), 'kW', k.peakT ? fmtLabel(k.peakT, 'x') + ' Uhr' : '', css('--strom')) +
+    kpi('Gas', nf(k.gasM3, 1), 'm³', voll(k.gasVollstaendig) || `${nf(k.gasKwh, 0)} kWh`, css('--gas')) +
+    kpi('Außentemperatur Ø', nf(k.tAvg, 1), '°C', k.tMin != null ? `min ${nf(k.tMin, 1)} / max ${nf(k.tMax, 1)} °C` : '', css('--temp')) +
+    kpi('Kosten Strom', eur(k.stromKosten), '', ct(k.stromKosten, k.stromKwh) + unv(k.stromKostenVollst)) +
+    kpi('Kosten Gas', eur(k.gasKosten), '', ct(k.gasKosten, k.gasKwh) + unv(k.gasKostenVollst)) +
+    kpi('Kosten gesamt', eur(total), '', 'inkl. MwSt.' + unv(k.stromKostenVollst && k.gasKostenVollst));
+
+  // Strom
+  const is15 = d.res === '15min';
+  const sLabels = d.strom.map(r => fmtLabel(r[0], d.res));
+  $('tStrom').textContent = is15 ? 'Strom – Leistung (kW, 15-min-Mittel)' : `Strom – Verbrauch pro ${resName[d.res]} (kWh)`;
+  $('legStrom').classList.toggle('hidden', is15);
+  if (is15) {
+    drawChart('cStrom', 'line', sLabels, [{ data: d.strom.map(r => r[2]), color: css('--strom') }], 'kW', () => []);
+  } else {
+    drawChart('cStrom', 'bar', sLabels, [
+      { label: 'Lieferant', data: d.strom.map(r => r[4]), color: css('--strom') },
+      { label: 'Energiegemeinschaft', data: d.strom.map(r => r[5]), color: css('--ce') }
+    ], 'kWh', i => [`Gesamt: ${nf(d.strom[i][1], 2)} kWh`, `Spitze: ${nf(d.strom[i][2], 2)} kW (${fmtLabel(d.strom[i][3], 'x')})`], true);
+  }
+
+  // Gas
+  $('tGas').textContent = `Gas – Verbrauch pro ${resName[d.gasRes]} (m³)`;
+  drawChart('cGas', 'bar', d.gas.map(r => fmtLabel(r[0], d.gasRes)), [{ data: d.gas.map(r => r[1]), color: css('--gas') }], 'm³',
+    i => [`${nf(d.gas[i][2], 1)} kWh`]);
+
+  // Temperatur
+  drawChart('cTemp', 'line', d.wetter.map(r => fmtLabel(r[0], d.gasRes)), [{ data: d.wetter.map(r => r[1]), color: css('--temp') }], '°C',
+    i => [`min ${nf(d.wetter[i][2], 1)} / max ${nf(d.wetter[i][3], 1)} °C`, wmo(d.wetter[i][4])]);
+
+  // Kostenaufschlüsselung
+  const costTable = (rows, sum) => `<thead><tr><th>Posten</th><th>Basis</th><th>Menge</th><th>Preis brutto</th><th>Betrag</th></tr></thead>
+    <tbody>${rows.map(p => `<tr><td>${esc(p.posten)}</td><td>${esc(p.basis)}</td><td>${nf(p.menge, 2)}</td>
+      <td>${p.preis.map(x => nf(x, Math.abs(x) < 1 ? 5 : 2)).join(' / ')} €</td><td>${eur(p.eur)}</td></tr>`).join('') ||
+      '<tr><td colspan="5" class="muted">Keine Preise für diesen Zeitraum hinterlegt</td></tr>'}</tbody>
+    <tfoot><tr><td colspan="4">Summe</td><td>${eur(sum)}</td></tr></tfoot>`;
+  $('kStrom').innerHTML = costTable(d.kosten.Strom, k.stromKosten);
+  $('kGas').innerHTML = costTable(d.kosten.Gas, k.gasKosten);
+
+  // Tabelle
+  const rows = d.tage.map(t => `<tr>
+      <td>${fmtDate(t.datum)}</td><td>${wmo(t.code)}</td>
+      <td>${nf(t.tmin, 1)}</td><td>${nf(t.tmax, 1)}</td>
+      <td>${nf(t.kwh, 2)}${t.vollstaendig != null && t.vollstaendig < 0.98 ? ' <span class="muted" title="Werte unvollständig">*</span>' : ''}</td>
+      <td>${nf(t.geteilt, 2)}</td><td>${nf(t.peak, 2)}</td><td>${nf(t.m3, 2)}</td><td>${nf(t.gkwh, 1)}</td>
+      <td>${eur(t.kostenStrom)}</td><td>${eur(t.kostenGas)}</td></tr>`).join('');
+  $('tbl').innerHTML = `<thead><tr><th>Datum</th><th>Wetter (stärkstes)</th><th>T min °C</th><th>T max °C</th>
+      <th>Strom kWh</th><th>davon Gem. kWh</th><th>Spitze kW</th><th>Gas m³</th><th>Gas kWh</th><th>Strom €</th><th>Gas €</th></tr></thead><tbody>${rows}</tbody>`;
+  $('result').classList.remove('hidden');
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function drawChart(id, type, labels, series, unit, extra, stacked) {
+  if (charts[id]) charts[id].destroy();
+  const grid = css('--grid'), muted = css('--muted'), surface = css('--surface');
+  charts[id] = new Chart($(id), {
+    type,
+    data: { labels, datasets: series.map(s => ({
+      label: s.label || '', data: s.data, borderColor: type === 'bar' ? surface : s.color, backgroundColor: s.color,
+      borderWidth: type === 'bar' ? { top: 2, right: 0, bottom: 0, left: 0 } : 2,
+      pointRadius: 0, pointHoverRadius: 5, tension: 0.2,
+      borderRadius: stacked ? 0 : { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom',
+      categoryPercentage: 0.9, barPercentage: 0.9, spanGaps: false
+    }))},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: c => `${c.dataset.label ? c.dataset.label + ': ' : ''}${nf(c.parsed.y, unit === '°C' ? 1 : 2)} ${unit}`,
+          footer: items => items.length ? extra(items[0].dataIndex) : []
+        }}
+      },
+      scales: {
+        x: { stacked: !!stacked, grid: { display: false }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, border: { color: css('--axis') } },
+        y: { stacked: !!stacked, beginAtZero: unit !== '°C', grid: { color: grid }, ticks: { color: muted }, border: { display: false } }
+      }
+    }
+  });
+}
+
+// ── Start ──
+preset('7');
+if (password) { showApp(); load(); }
+</script>
+</body>
+</html>
