@@ -13,6 +13,7 @@
  * (Projekteinstellungen → Script-Properties):
  *   LENEDA_API_KEY, LENEDA_ENERGY_ID, STROM_POD, GAS_POD, APP_PASSWORD
  *   optional: LENEDA_BASE (Standard: https://api.leneda.eu/api)
+ *   TOKEN_SECRET wird beim ersten Login automatisch angelegt.
  */
 
 const TZ = 'Europe/Luxembourg';
@@ -153,15 +154,43 @@ function doPost(e) {
   let out;
   try {
     const req = JSON.parse(e.postData.contents);
-    checkPassword_(req.password);
-    if (req.action === 'ping') out = {};
-    else if (req.action === 'data') out = getData_(req.from, req.to, req.res || 'auto');
-    else throw new Error('Unbekannte Aktion');
+    if (req.action === 'login') {
+      checkPassword_(req.password);
+      const days = req.remember ? TOKEN_DAYS_REMEMBER : TOKEN_DAYS_SESSION;
+      out = { token: makeToken_(Date.now() + days * 86400000) };
+    } else {
+      checkAuth_(req);
+      if (req.action === 'ping') out = {};
+      else if (req.action === 'data') out = getData_(req.from, req.to, req.res || 'auto');
+      else throw new Error('Unbekannte Aktion');
+    }
     out.ok = true;
   } catch (err) {
     out = { ok: false, error: String(err && err.message || err) };
   }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ───────────────────────── Anmeldung ─────────────────────────
+// Token = Ablaufzeit + Signatur (HMAC-SHA256). Der Schlüssel enthält APP_PASSWORD:
+// wird das Passwort geändert, sind alle ausgegebenen Tokens sofort ungültig.
+
+const TOKEN_DAYS_REMEMBER = 30;
+const TOKEN_DAYS_SESSION = 0.5; // 12 Stunden
+
+function tokenKey_() {
+  const p = PropertiesService.getScriptProperties();
+  let secret = p.getProperty('TOKEN_SECRET');
+  if (!secret) { secret = Utilities.getUuid() + Utilities.getUuid(); p.setProperty('TOKEN_SECRET', secret); }
+  return secret + '|' + (p.getProperty('APP_PASSWORD') || '');
+}
+
+function sign_(exp) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(String(exp), tokenKey_())).replace(/=+$/, '');
+}
+
+function makeToken_(exp) {
+  return exp + '.' + sign_(exp);
 }
 
 function checkPassword_(pw) {
@@ -175,6 +204,16 @@ function checkPassword_(pw) {
     Utilities.sleep(1000);
     throw new Error('Falsches Passwort');
   }
+}
+
+function checkAuth_(req) {
+  if (req.token) {
+    const parts = String(req.token).split('.');
+    const exp = Number(parts[0]);
+    if (parts.length === 2 && exp > Date.now() && parts[1] === sign_(exp)) return;
+    throw new Error('Anmeldung abgelaufen – bitte neu anmelden');
+  }
+  checkPassword_(req.password);
 }
 
 // ───────────────────────── Auswertung ─────────────────────────

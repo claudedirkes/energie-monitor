@@ -66,6 +66,8 @@
   .hidden{display:none!important}
   #login{max-width:340px;margin:12vh auto 0}
   #login form{display:flex;flex-direction:column;gap:10px}
+  .remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
+  .remember input{width:16px;height:16px;padding:0}
   .top{display:flex;justify-content:space-between;align-items:start;gap:12px}
   .muted{color:var(--muted)}
   @media (max-width:600px){ .kpi .v{font-size:20px} .chartbox{height:220px} }
@@ -80,6 +82,7 @@
     <p class="sub">Strom · Gas · Wetter (Leneda)</p>
     <form id="loginForm">
       <input type="password" id="pw" placeholder="Passwort" autocomplete="current-password" required>
+      <label class="remember"><input type="checkbox" id="remember"> Angemeldet bleiben (30 Tage) – nur auf eigenen Geräten</label>
       <button class="primary" type="submit" id="loginBtn">Anmelden</button>
       <div id="loginMsg" class="msg err hidden"></div>
     </form>
@@ -147,12 +150,23 @@ const API_URL = 'HIER_DIE_APPS_SCRIPT_WEBAPP_URL_EINTRAGEN';
 const $ = id => document.getElementById(id);
 const nf = (x, d = 1) => x == null ? '–' : x.toLocaleString('de-LU', { minimumFractionDigits: d, maximumFractionDigits: d });
 const eur = x => x == null ? '–' : x.toLocaleString('de-LU', { style: 'currency', currency: 'EUR' });
-const store = {
-  get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
-  del(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+// Token statt Passwort speichern: localStorage = "angemeldet bleiben", sessionStorage = nur dieser Tab
+const tokenStore = {
+  get() {
+    for (const s of ['localStorage', 'sessionStorage']) {
+      try { const t = window[s].getItem('emToken'); if (t && Number(t.split('.')[0]) > Date.now()) return t; } catch (e) {}
+    }
+    return null;
+  },
+  set(t, remember) {
+    this.clear();
+    try { window[remember ? 'localStorage' : 'sessionStorage'].setItem('emToken', t); } catch (e) {}
+  },
+  clear() {
+    for (const s of ['localStorage', 'sessionStorage']) { try { window[s].removeItem('emToken'); } catch (e) {} }
+  }
 };
-let password = store.get('pw');
+let token = tokenStore.get();
 const charts = {};
 
 const WMO = {
@@ -172,7 +186,7 @@ const wmo = c => (c === null || c === '' || c === undefined) ? '–' : (WMO[c] ?
 async function api(body) {
   if (API_URL.startsWith('HIER_')) throw new Error('API_URL in index.html ist noch nicht eingetragen.');
   // Content-Type text/plain → kein CORS-Preflight, Apps Script akzeptiert das
-  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ ...body, password }) });
+  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ ...body, token }) });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'Unbekannter Fehler');
   return j;
@@ -187,20 +201,24 @@ function hideMsg() { $('msg').className = 'msg hidden'; }
 // ── Login ──
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
-  password = $('pw').value;
   $('loginBtn').disabled = true;
   $('loginMsg').classList.add('hidden');
   try {
-    await api({ action: 'ping' });
-    store.set('pw', password);
+    token = null;
+    const remember = $('remember').checked;
+    const j = await api({ action: 'login', password: $('pw').value, remember });
+    token = j.token;
+    tokenStore.set(token, remember);
+    $('pw').value = '';
     showApp();
+    load();
   } catch (err) {
     $('loginMsg').textContent = err.message;
     $('loginMsg').classList.remove('hidden');
   } finally { $('loginBtn').disabled = false; }
 });
 $('logout').addEventListener('click', () => {
-  store.del('pw'); password = null;
+  tokenStore.clear(); token = null;
   $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pw').value = '';
 });
 function showApp() {
@@ -235,7 +253,11 @@ async function load() {
     render(d);
   } catch (err) {
     showMsg(err.message);
-    if (/Passwort/.test(err.message)) $('logout').click();
+    if (/Passwort|Anmeldung abgelaufen/.test(err.message)) {
+      $('logout').click();
+      $('loginMsg').textContent = err.message;
+      $('loginMsg').classList.remove('hidden');
+    }
   } finally { $('load').disabled = false; }
 }
 
@@ -357,7 +379,7 @@ function drawChart(id, type, labels, series, unit, extra, stacked) {
 
 // ── Start ──
 preset('7');
-if (password) { showApp(); load(); }
+if (token) { showApp(); load(); }
 </script>
 </body>
 </html>
