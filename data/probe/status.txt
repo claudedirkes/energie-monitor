@@ -1,5 +1,0 @@
-ett min5 200 160116
-ett hh 200 14756
-bet 3.2 200 6118
-content-type: text/html
-Sat Oct  3 17:33:23 UTC 2026
