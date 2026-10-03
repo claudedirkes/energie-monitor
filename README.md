@@ -2,7 +2,7 @@
 
 Statische Wetterseite für Diekirch (Luxemburg) – läuft komplett im Browser über GitHub Pages, ohne Backend und ohne API-Key.
 
-**Seite:** https://claudedirkes.github.io/energie-monitor/
+**Seite:** https://claudedirkes.github.io/wetter-diekirch/
 
 ## Inhalt
 - **Jetzt:** Temperatur, gefühlt, Wetter, Wind/Böen, Luftfeuchte, Luftdruck, Sonnenauf-/-untergang
