@@ -76,14 +76,27 @@
   th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
   th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
   th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .topActions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .topActions .small{font-size:12px;color:var(--ink2)}
+  #refresh.busy{opacity:.6;cursor:progress}
   .hidden{display:none!important}
   @media (max-width:640px){ .now{grid-template-columns:1fr} .now .big{font-size:44px} .chartbox{height:210px} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Wetter Diekirch</h1>
-  <p class="sub" id="stand">Lade aktuelle Daten …</p>
+  <div class="top">
+    <div>
+      <h1>Wetter Diekirch</h1>
+      <p class="sub" id="stand">Lade aktuelle Daten …</p>
+    </div>
+    <div class="topActions">
+      <button type="button" id="refresh" class="primary">↻ Aktualisieren</button>
+      <a class="small" href="https://github.com/claudedirkes/wetter-diekirch/actions/workflows/lcd-import.yml" target="_blank" rel="noopener"
+         title="Öffnet GitHub – dort „Run workflow“ klicken (nur als Besitzer möglich)">Stationsdaten neu importieren ↗</a>
+    </div>
+  </div>
 
   <div id="err" class="msg err hidden"></div>
 
@@ -305,10 +318,12 @@ async function loadDaily(from, to, vars = DAILY_HIST) {
 
 // ── Messstation meteoLCD (Tageswerte aus data/lcd/<Jahr>.json) ──
 const lcdCache = {};
+let bustTag = '';
+const bust = () => bustTag ? '?t=' + bustTag : '';
 let lcdIndex = null;
 async function lcdYear(y) {
   if (!(y in lcdCache)) {
-    lcdCache[y] = fetch('data/lcd/' + y + '.json').then(r => r.ok ? r.json() : null).catch(() => null);
+    lcdCache[y] = fetch('data/lcd/' + y + '.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   }
   return lcdCache[y];
 }
@@ -609,26 +624,45 @@ function renderFlagList() {
       <td>${nf(m.mo ? m.st / m.mo * 100 : 0, 0)} %</td><td>${m.typ === 'niedrig' ? 'zu niedrig – evtl. Ausfall/Verstopfung' : 'auffällig hoch'}</td></tr>`; }).join('') + '</tbody>' : '';
 }
 
-// ── Start ──
-loadForecast().catch(e => { $('err').textContent = 'Vorhersage konnte nicht geladen werden: ' + e.message; $('err').classList.remove('hidden'); });
-fetch('data/lcd/index.json').then(r => r.ok ? r.json() : null).catch(() => null).then(idx => {
+// ── Start / Aktualisieren ──
+async function loadAll(force) {
+  if (force) {                       // alles neu holen, Browser-Cache umgehen
+    bustTag = String(Date.now());
+    for (const k in lcdCache) delete lcdCache[k];
+    check = null;
+    $('flagCard').classList.add('hidden');
+  }
+  $('err').classList.add('hidden');
+  const fc = loadForecast().catch(e => { $('err').textContent = 'Vorhersage konnte nicht geladen werden: ' + e.message; $('err').classList.remove('hidden'); });
+  const idx = await fetch('data/lcd/index.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   lcdIndex = idx;
   const last = lcdLast();
   if (last) {
-    $('lcdInfo').textContent = `Messwerte der Station in Diekirch von ${fmtDate(Object.values(idx.jahre)[0].von)} bis ${fmtDate(last)}.`;
-    $('to').value = last; $('from').value = addDays(last, -29);   // Start: die letzten 30 Tage mit Messwerten
+    $('lcdInfo').textContent = `Messwerte der Station in Diekirch von ${fmtDate(Object.values(idx.jahre)[0].von)} bis ${fmtDate(last)} (Import vom ${fmtDate(idx.stand)}).`;
+    if (!force || !$('from').value) { $('to').value = last; $('from').value = addDays(last, -29); }  // Start: letzte 30 Tage mit Messwerten
     renderYears();
-    buildCheck().then(() => {
-      renderYears();
-      if ($('src').value === 'station') loadHistory();
-    }).catch(e => console.warn('Abgleich nicht möglich:', e));
   } else {
     $('src').value = 'model'; $('mSrc').value = 'model';
     $('yearsCard').classList.add('hidden');
-    preset('30');
+    if (!force) preset('30');
   }
-  loadHistory();
+  await loadHistory();
+  if (force && !$('mResult').classList.contains('hidden')) $('mLoad').click();
+  await fc;
+  if (last) {
+    try {
+      await buildCheck();
+      renderYears();
+      if ($('src').value === 'station') await loadHistory();
+    } catch (e) { console.warn('Abgleich nicht möglich:', e); }
+  }
+}
+$('refresh').addEventListener('click', async () => {
+  const b = $('refresh');
+  b.disabled = true; b.classList.add('busy'); b.textContent = '↻ Lädt …';
+  try { await loadAll(true); } finally { b.disabled = false; b.classList.remove('busy'); b.textContent = '↻ Aktualisieren'; }
 });
+loadAll(false);
 </script>
 </body>
 </html>
