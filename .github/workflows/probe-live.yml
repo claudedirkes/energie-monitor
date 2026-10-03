@@ -12,13 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Laden
         run: |
-          mkdir -p data/probe && cd data/probe
-          B='https://www.agrimeteo.lu/Internet/AM/NotesLUAM.nsf/(XP_StationABC)/65c497a9d9603796c12577510033ad0c?OpenDocument'
-          for r in 3.2 3.3; do curl -sSL -A "Mozilla/5.0" -o "ettelbruck_$r.html" -w "ettelbruck $r %{http_code} %{size_download}\n" "$B&TableRow=$r" >> status.txt 2>&1 || true; done
-          curl -sSL -A "Mozilla/5.0" -o bettendorf.html -w "bettendorf %{http_code} %{size_download}\n" "https://www.agrimeteo.lu/Agrarmeteorologie/Wetterdaten/Stationen-Alphabetisch/LUAM036" >> status.txt 2>&1 || true
-          curl -sS -o meteolux_obs.json -w "meteolux obs %{http_code}\n" https://metapi.ana.lu/api/v1/hvd/observations >> status.txt 2>&1 || true
-          curl -sS -o meteolux_meta.json -w "meteolux meta %{http_code}\n" https://metapi.ana.lu/api/v1/hvd/observations/metadata >> status.txt 2>&1 || true
-          curl -sSI https://metapi.ana.lu/api/v1/hvd/observations -H "Origin: https://claudedirkes.github.io" | grep -i "access-control" >> status.txt || echo "kein CORS-Header" >> status.txt
+          mkdir -p data/probe && cd data/probe && rm -f *
+          curl -sSL -A "Mozilla/5.0" -o ett_min5.html -w "ett min5 %{http_code} %{size_download}\n" "https://dlr-web-daten1.aspdienste.de/cgi-bin/wetter.min5.pl?c=92&sid=10&t=1,2,6,8,9&hh=24" >> status.txt 2>&1 || true
+          curl -sSL -A "Mozilla/5.0" -o ett_hh.html -w "ett hh %{http_code} %{size_download}\n" "https://dlr-web-daten1.aspdienste.de/cgi-bin/wetter.hh.pl?c=92&sid=10&t=1,4,11,7" >> status.txt 2>&1 || true
+          B='https://www.agrimeteo.lu/Internet/AM/NotesLUAM.nsf/(XP_StationABC)/1D9C0978978C6D7DC1257E14004D7953?OpenDocument'
+          curl -sSL -A "Mozilla/5.0" -o bet_32.html -w "bet 3.2 %{http_code} %{size_download}\n" "$B&TableRow=3.2" >> status.txt 2>&1 || true
+          curl -sSI "https://dlr-web-daten1.aspdienste.de/cgi-bin/wetter.hh.pl?c=92&sid=10&t=1,4,11,7" -H "Origin: https://claudedirkes.github.io" | grep -iE "access-control|content-type" >> status.txt || echo "kein CORS-Header" >> status.txt
           date -u >> status.txt
       - name: Committen
         run: |
