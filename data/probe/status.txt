@@ -1,11 +1,11 @@
-index 200
-dec25.dat 404 298
-aug26.dat 404 298
-total 64
-drwxr-xr-x 2 runner runner  4096 Oct  3 16:19 .
-drwxr-xr-x 3 runner runner  4096 Oct  3 16:19 ..
--rw-r--r-- 1 runner runner   298 Oct  3 16:19 aug26.dat
--rw-r--r-- 1 runner runner   298 Oct  3 16:19 dec25.dat
--rw-r--r-- 1 runner runner 39728 Oct  3 16:19 index.html
--rw-r--r-- 1 runner runner  2013 Oct  3 16:19 links.txt
--rw-r--r-- 1 runner runner    46 Oct  3 16:19 status.txt
+HTTP/2 200 
+https://meteo.lcd.lu/today.dat 200 21222
+https://meteo.lcd.lu/2026/aug26.dat 404 298
+https://meteo.lcd.lu/data/2026/aug26.dat 200 597036
+https://meteo.lcd.lu/data/aug26.dat 404 298
+https://meteo.lcd.lu/ALL_dat/all_2024.dat 404 298
+https://meteo.lcd.lu/data/ALL_dat/all_2024.dat 200 7335218
+https://meteo.lcd.lu/2024_only.xlsx 404 298
+https://meteo.lcd.lu/data/2024_only.xlsx 200 8670337
+https://meteo.lcd.lu/datafile_description.xls 404 298
+https://meteo.lcd.lu/data/datafile_description.xls 200 24064
