@@ -113,8 +113,8 @@ def datei_auswerten(text, jahr, messungen, bericht, formel):
             a, b = formel[0]
             temp = a * temp - b
             bericht["ohm_umgerechnet"] = bericht.get("ohm_umgerechnet", 0) + 1
-        # -20.0 ist bei dieser Station ein Fehlerwert (Untergrenze des Fühlers)
-        if temp is not None and temp <= -20.0:
+        # um -20 °C liegt die Untergrenze des Fühlers (-19.99 = Fehlerwert)
+        if temp is not None and temp <= -19.5:
             temp = None
         # Unplausible Werte verwerfen (Wartung, Stromausfall …)
         if regen is not None and not (0 <= regen <= 50):

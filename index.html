@@ -106,7 +106,14 @@
   <!-- Rückblick -->
   <div class="card section">
     <h2>Rückblick</h2>
+    <p class="sub" id="lcdInfo" style="margin:-4px 0 10px"></p>
     <div class="controls">
+      <label>Quelle
+        <select id="src">
+          <option value="station">Messung Diekirch (meteoLCD)</option>
+          <option value="model">Modell (Open-Meteo)</option>
+        </select>
+      </label>
       <label>Von <input type="date" id="from"></label>
       <label>Bis <input type="date" id="to"></label>
       <button class="primary" id="load" type="button">Anzeigen</button>
@@ -117,9 +124,11 @@
         <button type="button" data-p="vormonat">Letzter Monat</button>
         <button type="button" data-p="jahr">Dieses Jahr</button>
         <button type="button" data-p="vorjahr">Letztes Jahr</button>
+        <button type="button" data-p="alles">Seit 1994</button>
       </div>
     </div>
     <div id="hMsg" class="msg hidden"></div>
+    <div id="hInfo" class="msg hidden"></div>
     <div id="hResult" class="hidden">
       <div class="kpis" id="hKpis"></div>
       <div class="charts2">
@@ -135,6 +144,12 @@
   <div class="card section">
     <h2>Niederschlag je Monat – Jahresvergleich</h2>
     <div class="controls">
+      <label>Quelle
+        <select id="mSrc">
+          <option value="station">Messung Diekirch (meteoLCD)</option>
+          <option value="model">Modell (Open-Meteo)</option>
+        </select>
+      </label>
       <label>Jahr <select id="mYear"></select></label>
       <button type="button" id="mLoad">Anzeigen</button>
     </div>
@@ -146,10 +161,21 @@
     </div>
   </div>
 
+  <!-- Jahressummen Station -->
+  <div class="card section" id="yearsCard">
+    <h2>Niederschlag pro Jahr seit 1994 – Messstation Diekirch</h2>
+    <div class="kpis" id="yKpis"></div>
+    <div class="chartbox"><canvas id="cYears"></canvas></div>
+  </div>
+
   <p class="note">
-    Daten: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (Wettermodelle bzw. ERA5-Reanalyse, CC BY 4.0)
-    für Diekirch (49,868° N, 6,159° O). Es sind Modellwerte für die Umgebung, keine Messungen einer Station in Diekirch –
-    lokale Schauer können abweichen.
+    <b>Messwerte:</b> meteoLCD – Meteorological Station of the Lycée classique Diekirch, L-9233 Diekirch
+    (<a href="https://meteo.lcd.lu" target="_blank" rel="noopener">meteo.lcd.lu</a>), Werte alle 30 Minuten (bis 1995 stündlich),
+    hier zu Tageswerten zusammengefasst und wöchentlich aktualisiert. Die Station veröffentlicht ihre Daten monatlich, die letzten Wochen fehlen daher meist.
+    Lufttemperatur ab 2016 um −1,6 °C korrigiert (laut Station misst der Fühler seitdem zu hoch); 2014–2016 aus Widerstandswerten umgerechnet –
+    Temperaturen dieser Jahre (v. a. 2015) sind unsicher. Niederschlag ist der verlässlichere Messwert.<br>
+    <b>Vorhersage und Modell-Rückblick:</b> <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (Wettermodelle bzw. ERA5-Reanalyse, CC BY 4.0)
+    für 49,868° N, 6,159° O – Modellwerte, keine Messung; lokale Schauer können abweichen.
   </p>
 </div>
 
@@ -264,6 +290,46 @@ async function loadDaily(from, to) {
   return rows.filter(r => r.rain != null || r.tmax != null);
 }
 
+// ── Messstation meteoLCD (Tageswerte aus data/lcd/<Jahr>.json) ──
+const lcdCache = {};
+let lcdIndex = null;
+async function lcdYear(y) {
+  if (!(y in lcdCache)) {
+    lcdCache[y] = fetch('data/lcd/' + y + '.json').then(r => r.ok ? r.json() : null).catch(() => null);
+  }
+  return lcdCache[y];
+}
+async function loadStation(from, to) {
+  const ys = [];
+  for (let y = Number(from.slice(0, 4)); y <= Number(to.slice(0, 4)); y++) ys.push(y);
+  const files = await Promise.all(ys.map(lcdYear));
+  const rows = [];
+  files.forEach(f => f && f.tage.forEach(([d, rain, tmin, tmax, tmean, vollst]) => {
+    if (d >= from && d <= to) rows.push({ d, code: null, rain, tmin, tmax, tmean, vollst, rainH: null, sun: null });
+  }));
+  return rows;
+}
+function lcdLast() {
+  if (!lcdIndex) return null;
+  const j = Object.values(lcdIndex.jahre);
+  return j.length ? j[j.length - 1].bis : null;
+}
+async function loadSource(src, from, to) {
+  if (src === 'model') return { rows: await loadDaily(from, to), info: [] };
+  const t = today(); if (to > t) to = t;
+  const rows = await loadStation(from, to);
+  const info = [];
+  const want = Math.round((new Date(to + 'T12:00:00') - new Date(from + 'T12:00:00')) / 864e5) + 1;
+  const last = lcdLast();
+  if (last && to > last) info.push(`Messwerte liegen bis ${fmtDate(last)} vor (die Station veröffentlicht monatlich).`);
+  const missing = want - rows.length;
+  if (missing > 0 && !(last && from > last)) info.push(`${missing} Tag(e) ohne Messwerte im gewählten Zeitraum.`);
+  const inc = rows.filter(r => r.vollst < 0.8).length;
+  if (inc) info.push(`${inc} Tag(e) nur teilweise gemessen (z. B. Wartung) – Summen dort eher zu niedrig.`);
+  if (rows.some(r => r.d >= '2014-01-01' && r.d <= '2016-12-31')) info.push('Temperaturen 2014–2016 sind umgerechnet und unsicher.');
+  return { rows, info };
+}
+
 function preset(p) {
   const t = new Date(); t.setHours(12, 0, 0, 0);
   let f = new Date(t), to = new Date(t);
@@ -273,10 +339,12 @@ function preset(p) {
   else if (p === 'vormonat') { f = new Date(t.getFullYear(), t.getMonth() - 1, 1, 12); to = new Date(t.getFullYear(), t.getMonth(), 0, 12); }
   else if (p === 'jahr') f = new Date(t.getFullYear(), 0, 1, 12);
   else if (p === 'vorjahr') { f = new Date(t.getFullYear() - 1, 0, 1, 12); to = new Date(t.getFullYear() - 1, 11, 31, 12); }
+  else if (p === 'alles') f = new Date(1994, 2, 11, 12);
   $('from').value = iso(f); $('to').value = iso(to);
 }
 document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { preset(b.dataset.p); loadHistory(); }));
 $('load').addEventListener('click', loadHistory);
+$('src').addEventListener('change', loadHistory);
 
 async function loadHistory() {
   const from = $('from').value, to = $('to').value;
@@ -285,26 +353,39 @@ async function loadHistory() {
   m.textContent = 'Lade …'; m.className = 'msg';
   $('load').disabled = true;
   try {
-    const rows = await loadDaily(from, to);
-    if (!rows.length) throw new Error('Keine Daten für diesen Zeitraum.');
+    const src = $('src').value;
+    const { rows, info } = await loadSource(src, from, to);
+    if (!rows.length) throw new Error(src === 'station'
+      ? `Für diesen Zeitraum gibt es keine Messwerte${lcdLast() ? ' (vorhanden bis ' + fmtDate(lcdLast()) + ')' : ''}. Tipp: Quelle „Modell“ wählen.`
+      : 'Keine Daten für diesen Zeitraum.');
     m.className = 'msg hidden';
-    renderHistory(rows);
+    $('hInfo').textContent = info.join(' ');
+    $('hInfo').className = info.length ? 'msg' : 'msg hidden';
+    renderHistory(rows, src);
   } catch (e) {
     m.textContent = 'Fehler: ' + e.message; m.className = 'msg err';
   } finally { $('load').disabled = false; }
 }
 
-function renderHistory(rows) {
+function renderHistory(rows, src) {
   const sum = rows.reduce((a, r) => a + (r.rain || 0), 0);
   const rainDays = rows.filter(r => r.rain >= 1).length;
   const wettest = rows.reduce((a, r) => (r.rain || 0) > (a.rain || 0) ? r : a, rows[0]);
-  const warm = rows.reduce((a, r) => r.tmax > a.tmax ? r : a, rows[0]);
-  const cold = rows.reduce((a, r) => r.tmin < a.tmin ? r : a, rows[0]);
+  const withT = rows.filter(r => r.tmax != null && r.tmin != null);
+  const warm = withT.reduce((a, r) => r.tmax > a.tmax ? r : a, withT[0] || { tmax: null, d: '' });
+  const cold = withT.reduce((a, r) => r.tmin < a.tmin ? r : a, withT[0] || { tmin: null, d: '' });
   const means = rows.filter(r => r.tmean != null);
-  const tAvg = means.reduce((a, r) => a + r.tmean, 0) / (means.length || 1);
+  const tAvg = means.length ? means.reduce((a, r) => a + r.tmean, 0) / means.length : null;
   const sunH = rows.reduce((a, r) => a + (r.sun || 0), 0) / 3600;
-  let dry = 0, cur = 0;
-  rows.forEach(r => { cur = (r.rain || 0) < 1 ? cur + 1 : 0; dry = Math.max(dry, cur); });
+  // Trockenphase: nur aufeinanderfolgende Tage MIT Regenwert zählen (Messausfall unterbricht)
+  let dry = 0, cur = 0, prev = null;
+  rows.forEach(r => {
+    const lückenlos = prev && addDays(prev, 1) === r.d;
+    if (r.rain == null) cur = 0;
+    else if (r.rain < 1) cur = lückenlos || cur === 0 ? cur + 1 : 1;
+    else cur = 0;
+    prev = r.d; dry = Math.max(dry, cur);
+  });
   const kpi = (l, v, u, h) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="h">${h || ''}</div></div>`;
   $('hKpis').innerHTML =
     kpi('Niederschlag gesamt', nf(sum, 1), 'mm', `${rows.length} Tage`) +
@@ -312,9 +393,9 @@ function renderHistory(rows) {
     kpi('Nassester Tag', nf(wettest.rain, 1), 'mm', fmtDate(wettest.d)) +
     kpi('Längste Trockenphase', dry, 'Tage', 'am Stück < 1 mm') +
     kpi('Ø Temperatur', nf(tAvg, 1), '°C', '') +
-    kpi('Wärmster Tag', nf(warm.tmax, 1), '°C', fmtDate(warm.d)) +
-    kpi('Kältester Tag', nf(cold.tmin, 1), '°C', fmtDate(cold.d)) +
-    kpi('Sonnenstunden', nf(sunH, 0), 'h', '');
+    kpi('Wärmster Tag', nf(warm.tmax, 1), '°C', warm.d ? fmtDate(warm.d) : '') +
+    kpi('Kältester Tag', nf(cold.tmin, 1), '°C', cold.d ? fmtDate(cold.d) : '') +
+    (src === 'model' ? kpi('Sonnenstunden', nf(sunH, 0), 'h', '') : kpi('Quelle', 'Messung', '', 'meteoLCD Diekirch'));
 
   // ab 93 Tagen: Monatssummen
   const monthly = rows.length > 92;
@@ -325,8 +406,8 @@ function renderHistory(rows) {
       const k = r.d.slice(0, 7);
       const m = mm.get(k) || mm.set(k, { rain: 0, tmax: null, tmin: null, days: 0, rd: 0 }).get(k);
       m.rain += r.rain || 0; m.days++; if (r.rain >= 1) m.rd++;
-      if (m.tmax === null || r.tmax > m.tmax) m.tmax = r.tmax;
-      if (m.tmin === null || r.tmin < m.tmin) m.tmin = r.tmin;
+      if (r.tmax != null && (m.tmax === null || r.tmax > m.tmax)) m.tmax = r.tmax;
+      if (r.tmin != null && (m.tmin === null || r.tmin < m.tmin)) m.tmin = r.tmin;
     });
     const ks = [...mm.keys()];
     labels = ks.map(k => MONATE[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4));
@@ -338,7 +419,9 @@ function renderHistory(rows) {
   } else {
     labels = rows.map(r => r.d.slice(8, 10) + '.' + r.d.slice(5, 7) + '.');
     rain = rows.map(r => r.rain); tmax = rows.map(r => r.tmax); tmin = rows.map(r => r.tmin);
-    extra = i => [wIcon(rows[i].code) + ' ' + wText(rows[i].code), `Regen-Stunden: ${nf(rows[i].rainH, 0)}`];
+    extra = i => src === 'model'
+      ? [wIcon(rows[i].code) + ' ' + wText(rows[i].code), `Regen-Stunden: ${nf(rows[i].rainH, 0)}`]
+      : [`Ø ${nf(rows[i].tmean, 1)} °C`, `gemessen: ${nf(rows[i].vollst * 100, 0)} % des Tages`];
     $('tRain').textContent = 'Niederschlag pro Tag (mm)';
     $('tTemp').textContent = 'Höchst- und Tiefstwert pro Tag (°C)';
   }
@@ -353,18 +436,19 @@ function renderHistory(rows) {
 // ── Jahresvergleich ──
 (function () {
   const y = new Date().getFullYear();
-  $('mYear').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<option>${y - i}</option>`).join('');
+  $('mYear').innerHTML = Array.from({ length: y - 1994 }, (_, i) => `<option>${y - i}</option>`).join('');
 })();
 $('mLoad').addEventListener('click', async () => {
   const y = Number($('mYear').value);
   const m = $('mMsg');
   m.textContent = 'Lade …'; m.className = 'msg'; $('mLoad').disabled = true;
   try {
-    const rows = await loadDaily((y - 1) + '-01-01', y + '-12-31');
+    const { rows } = await loadSource($('mSrc').value, (y - 1) + '-01-01', y + '-12-31');
+    if (!rows.length) throw new Error('Keine Daten für diese Jahre.');
     const sums = { [y - 1]: Array(12).fill(null), [y]: Array(12).fill(null) };
     rows.forEach(r => {
       const yy = Number(r.d.slice(0, 4)), mi = Number(r.d.slice(5, 7)) - 1;
-      sums[yy][mi] = (sums[yy][mi] || 0) + (r.rain || 0);
+      if (r.rain != null) sums[yy][mi] = (sums[yy][mi] || 0) + r.rain;
     });
     const tot = yy => sums[yy].reduce((a, v) => a + (v || 0), 0);
     // Vergleich bis zum gleichen Datum im Vorjahr
@@ -420,10 +504,40 @@ function drawChart(id, type, labels, series, unit, extra, opts = {}) {
   });
 }
 
+// ── Jahressummen der Station ──
+function renderYears() {
+  const J = lcdIndex.jahre, ys = Object.keys(J);
+  const curY = String(new Date().getFullYear());
+  const full = ys.filter(y => J[y].von.endsWith('-01-01') && J[y].bis.endsWith('-12-31') && y !== curY);
+  const avg = full.reduce((a, y) => a + J[y].regen_summe, 0) / (full.length || 1);
+  const wet = full.reduce((a, y) => J[y].regen_summe > J[a].regen_summe ? y : a, full[0]);
+  const dry = full.reduce((a, y) => J[y].regen_summe < J[a].regen_summe ? y : a, full[0]);
+  const kpi = (l, v, u, h) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="h">${h || ''}</div></div>`;
+  $('yKpis').innerHTML =
+    kpi('Ø pro Jahr', nf(avg, 0), 'mm', `${full[0]}–${full[full.length - 1]}`) +
+    kpi('Nassestes Jahr', nf(J[wet].regen_summe, 0), 'mm', wet) +
+    kpi('Trockenstes Jahr', nf(J[dry].regen_summe, 0), 'mm', dry) +
+    kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert');
+  drawChart('cYears', 'bar', ys, [{ data: ys.map(y => J[y].regen_summe), color: css('--rain') }], 'mm',
+    i => full.includes(ys[i]) ? [] : [`unvollständig: ${fmtDate(J[ys[i]].von)} – ${fmtDate(J[ys[i]].bis)}`]);
+}
+
 // ── Start ──
 loadForecast().catch(e => { $('err').textContent = 'Vorhersage konnte nicht geladen werden: ' + e.message; $('err').classList.remove('hidden'); });
-preset('30');
-loadHistory();
+fetch('data/lcd/index.json').then(r => r.ok ? r.json() : null).catch(() => null).then(idx => {
+  lcdIndex = idx;
+  const last = lcdLast();
+  if (last) {
+    $('lcdInfo').textContent = `Messwerte der Station in Diekirch von ${fmtDate(Object.values(idx.jahre)[0].von)} bis ${fmtDate(last)}.`;
+    $('to').value = last; $('from').value = addDays(last, -29);   // Start: die letzten 30 Tage mit Messwerten
+    renderYears();
+  } else {
+    $('src').value = 'model'; $('mSrc').value = 'model';
+    $('yearsCard').classList.add('hidden');
+    preset('30');
+  }
+  loadHistory();
+});
 </script>
 </body>
 </html>
