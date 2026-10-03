@@ -1,13 +1,13 @@
-# Holt alle 30 Minuten die aktuellen Messwerte von AgriMeteo Ettelbruck und Bettendorf.
-# (GitHub startet geplante Jobs oft mit einigen Minuten Verspätung.)
-name: Live-Messwerte AgriMeteo
+# Holt täglich die Tageswerte der AgriMeteo-Station Ettelbruck (seit 2004).
+# Erster Lauf dauert ca. 20–30 Minuten (der Server erlaubt nur langsame Abfragen).
+name: Tageswerte Ettelbruck
 
 on:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '23 2 * * *'
   workflow_dispatch:
   push:
-    paths: ['scripts/agrimeteo_live.py', '.github/workflows/agrimeteo-live.yml']
+    paths: ['scripts/agrimeteo_tage.py', '.github/workflows/agrimeteo-tage.yml']
 
 permissions:
   contents: write
@@ -17,19 +17,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  live:
+  tage:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Messwerte laden
-        run: python scripts/agrimeteo_live.py
+      - name: Tageswerte laden
+        run: python scripts/agrimeteo_tage.py
       - name: Speichern
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add data/live
-          git commit -m "Live-Messwerte AgriMeteo" || exit 0
+          git add data/agri
+          git commit -m "Tageswerte Ettelbruck aktualisiert" || exit 0
           git pull --rebase -q && git push
