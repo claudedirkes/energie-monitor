@@ -1,0 +1,8 @@
+ettelbruck 3.2 200 6118
+ettelbruck 3.3 200 6123
+bettendorf 200 39790
+meteolux obs 200
+meteolux meta 200
+access-control-allow-credentials: true
+access-control-allow-origin: https://claudedirkes.github.io
+Sat Oct  3 17:32:23 UTC 2026
