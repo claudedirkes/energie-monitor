@@ -1,0 +1,11 @@
+index 200
+dec25.dat 404 298
+aug26.dat 404 298
+total 64
+drwxr-xr-x 2 runner runner  4096 Oct  3 16:19 .
+drwxr-xr-x 3 runner runner  4096 Oct  3 16:19 ..
+-rw-r--r-- 1 runner runner   298 Oct  3 16:19 aug26.dat
+-rw-r--r-- 1 runner runner   298 Oct  3 16:19 dec25.dat
+-rw-r--r-- 1 runner runner 39728 Oct  3 16:19 index.html
+-rw-r--r-- 1 runner runner  2013 Oct  3 16:19 links.txt
+-rw-r--r-- 1 runner runner    46 Oct  3 16:19 status.txt
