@@ -26,7 +26,7 @@ jobs:
           python-version: '3.12'
       - name: Messwerte laden
         run: python scripts/agrimeteo_live.py
-      - name: Einmalig: Aufbau der Tageswert-Seiten ansehen
+      - name: 'Einmalig - Aufbau der Tageswert-Seiten ansehen'
         run: |
           mkdir -p data/live/debug && cd data/live/debug
           B='https://www.agrimeteo.lu/Internet/AM/NotesLUAM.nsf/(XP_StationABC)/65c497a9d9603796c12577510033ad0c?OpenDocument'
