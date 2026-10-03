@@ -10,19 +10,19 @@
   :root{
     --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --axis:#c3c2b7; --border:#e1e0d9;
-    --rain:#2a78d6; --warm:#eb6834; --cold:#2a78d6; --prev:#c3c2b7; --error:#d03b3b;
+    --rain:#2a78d6; --warm:#eb6834; --agri:#1baf7a; --cold:#2a78d6; --prev:#c3c2b7; --error:#d03b3b;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-      --rain:#3987e5; --warm:#d95926; --cold:#3987e5; --prev:#52514e;
+      --rain:#3987e5; --warm:#d95926; --agri:#199e70; --cold:#3987e5; --prev:#52514e;
     }
   }
   :root[data-theme="dark"]{
     --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-    --rain:#3987e5; --warm:#d95926; --cold:#3987e5; --prev:#52514e;
+    --rain:#3987e5; --warm:#d95926; --agri:#199e70; --cold:#3987e5; --prev:#52514e;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -80,6 +80,16 @@
   .topActions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
   .topActions .small{font-size:12px;color:var(--ink2)}
   #refresh.busy{opacity:.6;cursor:progress}
+  .live{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:12px}
+  .st{border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .st .n{font-weight:600}
+  .st .d{font-size:12px;color:var(--muted)}
+  .st .t{font-size:34px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums;margin:4px 0}
+  .st .t small{font-size:15px;color:var(--ink2);font-weight:500}
+  .st .row{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--ink2)}
+  .st .row b{color:var(--ink);font-weight:600}
+  .st .age{font-size:12px;color:var(--muted);margin-top:6px}
+  .st .age.old{color:var(--error)}
   .hidden{display:none!important}
   @media (max-width:640px){ .now{grid-template-columns:1fr} .now .big{font-size:44px} .chartbox{height:210px} }
 </style>
@@ -101,6 +111,15 @@
   <div id="err" class="msg err hidden"></div>
 
   <!-- Jetzt -->
+  <div class="card section" id="liveCard">
+    <h2>Gemessen in der Nähe</h2>
+    <div class="live" id="live"><div class="st"><div class="d">Lade Messwerte …</div></div></div>
+    <h2 style="margin-top:4px">Temperatur der letzten 24 Stunden – gemessen (°C)</h2>
+    <div class="legend"><span style="--c:var(--agri)">Ettelbruck</span><span style="--c:var(--warm)">Bettendorf</span></div>
+    <div class="chartbox"><canvas id="cLive"></canvas></div>
+  </div>
+
+  <h2 style="margin:4px 0 8px">Modell für Diekirch (Open-Meteo)</h2>
   <div class="card section now" id="nowCard">
     <div>
       <div class="big" id="nowT">–</div>
@@ -131,6 +150,7 @@
       <label>Quelle
         <select id="src">
           <option value="station">Messung Diekirch (meteoLCD)</option>
+          <option value="agri">Messung Ettelbruck (AgriMeteo, ab 2004)</option>
           <option value="model">Modell (Open-Meteo)</option>
         </select>
       </label>
@@ -167,6 +187,7 @@
       <label>Quelle
         <select id="mSrc">
           <option value="station">Messung Diekirch (meteoLCD)</option>
+          <option value="agri">Messung Ettelbruck (AgriMeteo, ab 2004)</option>
           <option value="model">Modell (Open-Meteo)</option>
         </select>
       </label>
@@ -185,12 +206,12 @@
   <div class="card section" id="yearsCard">
     <h2>Niederschlag pro Jahr seit 1994 – Messstation Diekirch</h2>
     <div class="kpis" id="yKpis"></div>
-    <div class="legend hidden" id="yLeg"><span style="--c:var(--rain)">Station</span><span style="--c:var(--prev)">Modell (gleiche Tage)</span></div>
+    <div class="legend" id="yLeg"><span style="--c:var(--rain)">Diekirch (meteoLCD)</span><span style="--c:var(--agri)">Ettelbruck (AgriMeteo)</span><span id="yLegM" class="hidden" style="--c:var(--prev)">Modell</span></div>
     <div class="chartbox"><canvas id="cYears"></canvas></div>
   </div>
 
   <div class="card section hidden" id="flagCard">
-    <h2>Regenmessung fraglich – Abgleich Station gegen Modell</h2>
+    <h2>Regenmessung Diekirch fraglich – Abgleich mit Ettelbruck bzw. Modell</h2>
     <p class="hint" id="flagCount"></p>
     <div class="tablewrap"><table id="flagTbl"></table></div>
   </div>
@@ -201,6 +222,9 @@
     hier zu Tageswerten zusammengefasst und wöchentlich aktualisiert. Die Station veröffentlicht ihre Daten monatlich, die letzten Wochen fehlen daher meist.
     Lufttemperatur ab 2016 um −1,6 °C korrigiert (laut Station misst der Fühler seitdem zu hoch); 2014–2016 aus Widerstandswerten umgerechnet –
     Temperaturen dieser Jahre (v. a. 2015) sind unsicher. Niederschlag ist der verlässlichere Messwert.<br>
+    <b>Messwerte Ettelbruck/Bettendorf:</b> AgriMeteo Luxembourg (Ministère de l'Agriculture, CC0,
+    <a href="https://www.agrimeteo.lu" target="_blank" rel="noopener">agrimeteo.lu</a>) – 10-Minuten-Werte, alle 30 min abgerufen; Tageswerte Ettelbruck ab 2004.
+    <b>Findel:</b> MeteoLux (ANA, CC0), Minutenwerte live.<br>
     <b>Vorhersage und Modell-Rückblick:</b> <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (Wettermodelle bzw. ERA5-Reanalyse, CC BY 4.0)
     für 49,868° N, 6,159° O – Modellwerte, keine Messung; lokale Schauer können abweichen.
   </p>
@@ -321,36 +345,45 @@ async function loadDaily(from, to, vars = DAILY_HIST) {
 const lcdCache = {};
 let bustTag = '';
 const bust = () => bustTag ? '?t=' + bustTag : '';
-let lcdIndex = null;
-async function lcdYear(y) {
-  if (!(y in lcdCache)) {
-    lcdCache[y] = fetch('data/lcd/' + y + '.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+let lcdIndex = null, agriIndex = null;
+const BASE = { lcd: 'data/lcd/', agri: 'data/agri/ettelbruck/' };
+function stationYear(quelle, y) {
+  const k = quelle + y;
+  if (!(k in lcdCache)) {
+    lcdCache[k] = fetch(BASE[quelle] + y + '.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   }
-  return lcdCache[y];
+  return lcdCache[k];
 }
-async function loadStation(from, to) {
+const lcdYear = y => stationYear('lcd', y);
+async function loadStation(from, to, quelle = 'lcd') {
   const ys = [];
   for (let y = Number(from.slice(0, 4)); y <= Number(to.slice(0, 4)); y++) ys.push(y);
-  const files = await Promise.all(ys.map(lcdYear));
+  const files = await Promise.all(ys.map(y => stationYear(quelle, y)));
   const rows = [];
   files.forEach(f => f && f.tage.forEach(([d, rain, tmin, tmax, tmean, vollst]) => {
     if (d >= from && d <= to) rows.push({ d, code: null, rain, tmin, tmax, tmean, vollst, rainH: null, sun: null });
   }));
   return rows;
 }
-function lcdLast() {
-  if (!lcdIndex) return null;
-  const j = Object.values(lcdIndex.jahre);
+function lcdLast(idx = lcdIndex) {
+  if (!idx) return null;
+  const j = Object.values(idx.jahre);
   return j.length ? j[j.length - 1].bis : null;
 }
 async function loadSource(src, from, to) {
   if (src === 'model') return { rows: await loadDaily(from, to), info: [] };
   const t = today(); if (to > t) to = t;
+  if (src === 'agri') {
+    const rows = await loadStation(from, to, 'agri');
+    const info = ['Ettelbruck (AgriMeteo), ca. 4 km von Diekirch. Tiefst-/Höchstwerte aus Stundenmitteln (etwas weniger extrem als Einzelmessungen).'];
+    if (from < '2004-01-01') info.push('Daten erst ab 2004.');
+    return { rows, info };
+  }
   const rows = await loadStation(from, to);
   const info = [];
   const want = Math.round((new Date(to + 'T12:00:00') - new Date(from + 'T12:00:00')) / 864e5) + 1;
   const last = lcdLast();
-  if (last && to > last) info.push(`Messwerte liegen bis ${fmtDate(last)} vor (die Station veröffentlicht monatlich).`);
+  if (last && to > last) info.push(`Messwerte Diekirch liegen bis ${fmtDate(last)} vor (die Station veröffentlicht monatlich) – für neuere Tage Quelle „Ettelbruck“ wählen.`);
   const missing = want - rows.length;
   if (missing > 0 && !(last && from > last)) info.push(`${missing} Tag(e) ohne Messwerte im gewählten Zeitraum.`);
   const inc = rows.filter(r => r.vollst < 0.8).length;
@@ -368,16 +401,23 @@ const MIN_MODELL = 20, FAKTOR_NIEDRIG = 0.5, MIN_HOCH = 40, FAKTOR_HOCH = 2;
 async function buildCheck() {
   const ys = Object.keys(lcdIndex.jahre);
   const files = await Promise.all(ys.map(lcdYear));
+  const agriFiles = await Promise.all(ys.map(y => stationYear('agri', y)));
+  const agri = new Map();
+  agriFiles.forEach(f => f && f.tage.forEach(([d, rain]) => { if (rain != null) agri.set(d, rain); }));
   const first = Object.values(lcdIndex.jahre)[0].von, last = lcdLast();
-  const model = new Map((await loadDaily(first, last, 'precipitation_sum')).map(r => [r.d, r.rain]));
+  let model = new Map();
+  try { model = new Map((await loadDaily(first, last, 'precipitation_sum')).map(r => [r.d, r.rain])); }
+  catch (e) { console.warn('Modell nicht erreichbar, Abgleich nur mit Ettelbruck', e); }
   const months = {}, years = {};
   files.forEach(f => f && f.tage.forEach(([d, rain]) => {
-    if (rain == null || model.get(d) == null) return;
+    // Vergleichswert: echte Messung Ettelbruck, sonst Modell
+    const ref = agri.has(d) ? agri.get(d) : model.get(d);
+    if (rain == null || ref == null) return;
     const k = d.slice(0, 7), y = d.slice(0, 4);
-    const m = months[k] || (months[k] = { st: 0, mo: 0, typ: null });
-    m.st += rain; m.mo += model.get(d);
+    const m = months[k] || (months[k] = { st: 0, mo: 0, typ: null, nE: 0, nM: 0 });
+    m.st += rain; m.mo += ref; agri.has(d) ? m.nE++ : m.nM++;
     const yy = years[y] || (years[y] = { st: 0, mo: 0, n: 0 });
-    yy.st += rain; yy.mo += model.get(d);
+    yy.st += rain; yy.mo += model.get(d) || 0;
   }));
   for (const k in months) {
     const m = months[k];
@@ -391,9 +431,10 @@ const monthLabel = k => MONATE[Number(k.slice(5, 7)) - 1] + ' ' + k.slice(0, 4);
 function flagText(k) {
   const m = check && check.months[k];
   if (!m) return [];
-  const t = [`Modell: ${nf(m.mo, 1)} mm (gleiche Tage)`];
-  if (m.typ === 'niedrig') t.push('⚠ Messung fraglich – Station deutlich niedriger als Modell');
-  if (m.typ === 'hoch') t.push('⚠ Messung auffällig hoch gegenüber Modell');
+  const ref = m.nE >= m.nM ? 'Ettelbruck' : 'Modell';
+  const t = [`${ref}: ${nf(m.mo, 1)} mm (gleiche Tage)`];
+  if (m.typ === 'niedrig') t.push(`⚠ Messung fraglich – Diekirch deutlich niedriger als ${ref}`);
+  if (m.typ === 'hoch') t.push(`⚠ Messung auffällig hoch gegenüber ${ref}`);
   return t;
 }
 function flaggedIn(from, to) {
@@ -426,6 +467,7 @@ async function loadHistory() {
   try {
     const src = $('src').value;
     const { rows, info } = await loadSource(src, from, to);
+    if (!rows.length && src === 'agri') throw new Error('Für diesen Zeitraum gibt es (noch) keine Tageswerte aus Ettelbruck.');
     if (!rows.length) throw new Error(src === 'station'
       ? `Für diesen Zeitraum gibt es keine Messwerte${lcdLast() ? ' (vorhanden bis ' + fmtDate(lcdLast()) + ')' : ''}. Tipp: Quelle „Modell“ wählen.`
       : 'Keine Daten für diesen Zeitraum.');
@@ -435,6 +477,7 @@ async function loadHistory() {
     renderHistory(rows, src);
   } catch (e) {
     m.textContent = 'Fehler: ' + e.message; m.className = 'msg err';
+    $('hInfo').className = 'msg hidden';
   } finally { $('load').disabled = false; }
 }
 
@@ -466,7 +509,7 @@ function renderHistory(rows, src) {
     kpi('Ø Temperatur', nf(tAvg, 1), '°C', '') +
     kpi('Wärmster Tag', nf(warm.tmax, 1), '°C', warm.d ? fmtDate(warm.d) : '') +
     kpi('Kältester Tag', nf(cold.tmin, 1), '°C', cold.d ? fmtDate(cold.d) : '') +
-    (src === 'model' ? kpi('Sonnenstunden', nf(sunH, 0), 'h', '') : kpi('Quelle', 'Messung', '', 'meteoLCD Diekirch'));
+    (src === 'model' ? kpi('Sonnenstunden', nf(sunH, 0), 'h', '') : kpi('Quelle', 'Messung', '', src === 'agri' ? 'AgriMeteo Ettelbruck' : 'meteoLCD Diekirch'));
 
   // ab 93 Tagen: Monatssummen
   const monthly = rows.length > 92;
@@ -492,6 +535,7 @@ function renderHistory(rows, src) {
     rain = rows.map(r => r.rain); tmax = rows.map(r => r.tmax); tmin = rows.map(r => r.tmin);
     extra = i => src === 'model'
       ? [wIcon(rows[i].code) + ' ' + wText(rows[i].code), `Regen-Stunden: ${nf(rows[i].rainH, 0)}`]
+      : src === 'agri' ? [`Ø ${nf(rows[i].tmean, 1)} °C`]
       : [`Ø ${nf(rows[i].tmean, 1)} °C`, `gemessen: ${nf(rows[i].vollst * 100, 0)} % des Tages`,
          ...(check && check.months[rows[i].d.slice(0, 7)]?.typ ? ['⚠ Regenmessung in diesem Monat fraglich'] : [])];
     $('tRain').textContent = 'Niederschlag pro Tag (mm)';
@@ -602,9 +646,13 @@ function renderYears() {
     kpi('Trockenstes Jahr', nf(J[dry].regen_summe, 0), 'mm', dry) +
     kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert') +
     (check ? kpi('Fragliche Monate', Object.values(check.months).filter(m => m.typ).length, '', 'Abgleich mit Modell') : '');
-  const series = [{ label: 'Station', data: ys.map(y => J[y].regen_summe), color: css('--rain') }];
-  if (check) series.push({ label: 'Modell', data: ys.map(y => check.years[y] ? Math.round(check.years[y].mo) : null), color: css('--prev') });
-  $('yLeg').classList.toggle('hidden', !check);
+  const A = agriIndex ? agriIndex.jahre : {};
+  const series = [
+    { label: 'Diekirch', data: ys.map(y => J[y].regen_summe), color: css('--rain') },
+    { label: 'Ettelbruck', data: ys.map(y => A[y] ? A[y].regen_summe : null), color: css('--agri') }
+  ];
+  if (check) series.push({ label: 'Modell', data: ys.map(y => check.years[y] && check.years[y].mo ? Math.round(check.years[y].mo) : null), color: css('--prev') });
+  $('yLegM').classList.toggle('hidden', !check);
   drawChart('cYears', 'bar', ys, series, 'mm', i => {
     const y = ys[i], t = [];
     if (!complete.includes(y)) t.push(`unvollständig: ${fmtDate(J[y].von)} – ${fmtDate(J[y].bis)}`);
@@ -618,11 +666,61 @@ function renderFlagList() {
   const ks = Object.keys(check.months).filter(k => check.months[k].typ).sort().reverse();
   $('flagCard').classList.remove('hidden');
   $('flagCount').textContent = ks.length
-    ? `${ks.length} Monate, in denen die Station deutlich vom Modell abweicht (Modell ≥ ${MIN_MODELL} mm und Station < ${FAKTOR_NIEDRIG * 100} % davon, oder Station ≥ ${MIN_HOCH} mm und > ${FAKTOR_HOCH}× Modell).`
+    ? `${ks.length} Monate, in denen Diekirch deutlich vom Vergleich abweicht. Vergleich = Messung Ettelbruck (ab 2004), davor Modell. Regel: Vergleich ≥ ${MIN_MODELL} mm und Diekirch < ${FAKTOR_NIEDRIG * 100} % davon, oder Diekirch ≥ ${MIN_HOCH} mm und > ${FAKTOR_HOCH}× Vergleich.`
     : 'Keine auffälligen Monate gefunden.';
-  $('flagTbl').innerHTML = ks.length ? `<thead><tr><th>Monat</th><th>Station</th><th>Modell</th><th>Station/Modell</th><th>Einschätzung</th></tr></thead><tbody>` +
-    ks.map(k => { const m = check.months[k]; return `<tr><td>${monthLabel(k)}</td><td>${nf(m.st, 1)} mm</td><td>${nf(m.mo, 1)} mm</td>
+  $('flagTbl').innerHTML = ks.length ? `<thead><tr><th>Monat</th><th>Diekirch</th><th>Vergleich</th><th>Quelle</th><th>Verhältnis</th><th>Einschätzung</th></tr></thead><tbody>` +
+    ks.map(k => { const m = check.months[k]; return `<tr><td>${monthLabel(k)}</td><td>${nf(m.st, 1)} mm</td><td>${nf(m.mo, 1)} mm</td><td>${m.nE >= m.nM ? 'Ettelbruck' : 'Modell'}</td>
       <td>${nf(m.mo ? m.st / m.mo * 100 : 0, 0)} %</td><td>${m.typ === 'niedrig' ? 'zu niedrig – evtl. Ausfall/Verstopfung' : 'auffällig hoch'}</td></tr>`; }).join('') + '</tbody>' : '';
+}
+
+// ── Live-Messwerte ──
+const minAlt = d => Math.round((Date.now() - d.getTime()) / 60000);
+const altText = m => m < 60 ? `vor ${m} min` : m < 1440 ? `vor ${Math.floor(m / 60)} h ${m % 60} min` : `vor ${Math.floor(m / 1440)} Tag(en)`;
+function stTile(name, dist, t, rows, zeit, quelle) {
+  const m = zeit ? minAlt(zeit) : null;
+  return `<div class="st"><div class="n">${name}</div><div class="d">${dist} · ${quelle}</div>
+    <div class="t">${nf(t, 1)}<small> °C</small></div>
+    <div class="row">${rows.map(([l, v]) => `<span>${l} <b>${v}</b></span>`).join('')}</div>
+    <div class="age${m != null && m > 120 ? ' old' : ''}">${zeit ? `gemessen ${zeit.toLocaleTimeString('de-LU', { hour: '2-digit', minute: '2-digit' })} Uhr (${altText(m)})` : 'keine Daten'}</div></div>`;
+}
+async function loadLive() {
+  const tiles = [];
+  // AgriMeteo (vom GitHub-Job alle 30 min gespeichert)
+  const ag = await fetch('data/live/agrimeteo.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const serie = {};
+  for (const [name, dist] of [['Ettelbruck', 'ca. 4 km'], ['Bettendorf', 'ca. 5 km']]) {
+    const w = ag && ag.stationen[name] ? ag.stationen[name].werte.filter(x => x.t != null) : [];
+    const last = w[w.length - 1];
+    const heute = last ? last.zeit.slice(0, 10) : '';
+    const regenHeute = w.filter(x => x.zeit.startsWith(heute)).reduce((a, x) => a + (x.regen || 0), 0);
+    const tagesW = w.filter(x => x.zeit.startsWith(heute)).map(x => x.t);
+    tiles.push(stTile(name, dist, last && last.t, last ? [
+      ['Feuchte', nf(last.rf, 0) + ' %'], ['Wind', nf(last.wind * 3.6, 0) + ' km/h'],
+      ['Regen heute', nf(regenHeute, 1) + ' mm'], ['heute', `${nf(Math.min(...tagesW), 1)} / ${nf(Math.max(...tagesW), 1)} °C`]
+    ] : [], last ? new Date(last.zeit) : null, 'AgriMeteo, 10-min-Werte'));
+    serie[name] = w;
+  }
+  // MeteoLux Findel (live, direkt abgefragt)
+  try {
+    const j = await getJSON('https://metapi.ana.lu/api/v1/hvd/observations');
+    const v = Object.fromEntries(j.data.map(x => [x.id, x.value]));
+    tiles.push(stTile('Findel (Flughafen)', 'ca. 27 km', v.st, [
+      ['Feuchte', nf(v.su, 0) + ' %'], ['Wind', nf(v.s2ff_rwymd0 * 3.6, 0) + ' km/h'],
+      ['Böen', nf(v.s2ffgust_rwymd0 * 3.6, 0) + ' km/h'], ['Luftdruck', nf(v.spsl, 0) + ' hPa']
+    ], new Date(j.timestamp), 'MeteoLux, live'));
+  } catch (e) {
+    tiles.push(stTile('Findel (Flughafen)', 'ca. 27 km', null, [], null, 'MeteoLux – nicht erreichbar'));
+  }
+  $('live').innerHTML = tiles.join('');
+  // Verlauf der letzten 24 h (gemeinsame Zeitachse aus Ettelbruck)
+  const basis = (serie.Ettelbruck || []).slice(-144);
+  if (basis.length) {
+    const bet = new Map((serie.Bettendorf || []).map(x => [x.zeit, x.t]));
+    drawChart('cLive', 'line', basis.map(x => x.zeit.slice(11)), [
+      { label: 'Ettelbruck', data: basis.map(x => x.t), color: css('--agri') },
+      { label: 'Bettendorf', data: basis.map(x => bet.has(x.zeit) ? bet.get(x.zeit) : null), color: css('--warm') }
+    ], '°C', i => [fmtDate(basis[i].zeit.slice(0, 10)) + ' ' + basis[i].zeit.slice(11) + ' Uhr', `Regen (10 min): ${nf(basis[i].regen, 1)} mm`]);
+  }
 }
 
 // ── Start / Aktualisieren ──
@@ -634,8 +732,10 @@ async function loadAll(force) {
     $('flagCard').classList.add('hidden');
   }
   $('err').classList.add('hidden');
+  loadLive().catch(e => console.warn('Live-Werte:', e));
   const fc = loadForecast().catch(e => { $('err').textContent = 'Vorhersage konnte nicht geladen werden: ' + e.message; $('err').classList.remove('hidden'); });
   const idx = await fetch('data/lcd/index.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  agriIndex = await fetch('data/agri/ettelbruck/index.json' + bust(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   lcdIndex = idx;
   const last = lcdLast();
   if (last) {
