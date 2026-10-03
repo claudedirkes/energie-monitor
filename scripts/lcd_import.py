@@ -175,6 +175,12 @@ def jahr_verarbeiten(jahr):
     for datum in sorted(tage):
         t = tage[datum]
         temps = t["temps"]
+        # Ausreißer (kurze Fehlmessungen) entfernen: > 10 °C vom Tagesmedian entfernt
+        if temps:
+            median = sorted(temps)[len(temps) // 2]
+            gut = [x for x in temps if abs(x - median) <= 10]
+            bericht["temp_ausreisser"] = bericht.get("temp_ausreisser", 0) + len(temps) - len(gut)
+            temps = gut
         if t["regen"] > 100:  # mehr als 100 mm/Tag: Messfehler (z. B. Defekt am Regenmesser)
             t["n_regen"], t["regen"] = 0, 0.0
             bericht["regen_verworfen"] = bericht.get("regen_verworfen", 0) + 1
