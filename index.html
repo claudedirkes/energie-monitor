@@ -638,8 +638,7 @@ function renderYears() {
     kpi('Ø pro Jahr', nf(avg, 0), 'mm', check && full === clean ? `${full.length} Jahre ohne fragliche Monate` : `${full[0]}–${full[full.length - 1]}`) +
     kpi('Nassestes Jahr', nf(J[wet].regen_summe, 0), 'mm', wet) +
     kpi('Trockenstes Jahr', nf(J[dry].regen_summe, 0), 'mm', dry) +
-    kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert') +
-    (check ? kpi('Fragliche Monate', Object.values(check.months).filter(m => m.typ).length, '', 'Abgleich mit Modell') : '');
+    kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert');
   const A = agriIndex ? agriIndex.jahre : {};
   const series = [
     { label: 'Diekirch', data: ys.map(y => J[y].regen_summe), color: css('--rain') },
