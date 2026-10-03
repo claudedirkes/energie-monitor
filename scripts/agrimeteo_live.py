@@ -27,7 +27,7 @@ STATIONEN = {            # Stationsnummer beim Datenserver: Name
 
 
 def laden(url):
-    anfrage = urllib.request.Request(url, headers={"User-Agent": "wetter-diekirch (GitHub Actions)"})
+    anfrage = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(anfrage, timeout=60) as antwort:
         return antwort.read().decode("latin-1")
 
@@ -106,9 +106,12 @@ def main():
             print(f"{name}: {len(werte)} Werte, neuester {werte[-1]['zeit'] if werte else '–'}")
         except Exception as e:  # Station nicht erreichbar → beim nächsten Lauf erneut
             fehler += 1
-            print(f"{name}: Fehler {e}")
-    if fehler == len(STATIONEN):
-        sys.exit(1)  # nichts überschreiben, wenn alles fehlgeschlagen ist
+            ergebnis.setdefault("fehler", {})[name] = repr(e)
+            print(f"{name}: Fehler {e!r}")
+    alt = ZIEL / "agrimeteo.json"
+    if fehler == len(STATIONEN) and alt.exists():
+        print("Alle Stationen fehlgeschlagen – alte Daten bleiben stehen.")
+        return
     (ZIEL / "agrimeteo.json").write_text(json.dumps(ergebnis, ensure_ascii=False, separators=(",", ":")))
 
 
