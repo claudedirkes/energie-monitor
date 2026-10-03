@@ -76,10 +76,17 @@
   th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
   th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
   th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
-  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:nowrap}
+  .top > div:first-child{flex:1;min-width:0}
   .topActions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
   .topActions .small{font-size:12px;color:var(--ink2)}
   #refresh.busy{opacity:.6;cursor:progress}
+  #refresh{white-space:nowrap}
+  @media (max-width:640px){
+    #refresh{padding:6px 11px;font-size:18px;line-height:1.2}
+    #refresh .lbl{display:none}
+    .topActions .small{display:none}
+  }
   .live{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:12px}
   .st{border:1px solid var(--border);border-radius:8px;padding:10px 12px}
   .st .n{font-weight:600}
@@ -102,7 +109,7 @@
       <p class="sub" id="stand">Lade aktuelle Daten …</p>
     </div>
     <div class="topActions">
-      <button type="button" id="refresh" class="primary">↻ Aktualisieren</button>
+      <button type="button" id="refresh" class="primary" title="Alle Daten neu laden" aria-label="Aktualisieren">↻<span class="lbl"> Aktualisieren</span></button>
       <a class="small" href="https://github.com/claudedirkes/wetter-diekirch/actions/workflows/lcd-import.yml" target="_blank" rel="noopener"
          title="Öffnet GitHub – dort „Run workflow“ klicken (nur als Besitzer möglich)">Stationsdaten neu importieren ↗</a>
     </div>
@@ -743,8 +750,8 @@ async function loadAll(force) {
 }
 $('refresh').addEventListener('click', async () => {
   const b = $('refresh');
-  b.disabled = true; b.classList.add('busy'); b.textContent = '↻ Lädt …';
-  try { await loadAll(true); } finally { b.disabled = false; b.classList.remove('busy'); b.textContent = '↻ Aktualisieren'; }
+  b.disabled = true; b.classList.add('busy'); b.innerHTML = '↻<span class="lbl"> Lädt …</span>';
+  try { await loadAll(true); } finally { b.disabled = false; b.classList.remove('busy'); b.innerHTML = '↻<span class="lbl"> Aktualisieren</span>'; }
 });
 loadAll(false);
 </script>
