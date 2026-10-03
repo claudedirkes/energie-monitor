@@ -4,25 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Energie-Monitor</title>
+<title>Wetter Diekirch</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
     --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --axis:#c3c2b7; --border:#e1e0d9;
-    --strom:#2a78d6; --gas:#eb6834; --temp:#1baf7a; --ce:#4a3aa7; --warnc:#fab219; --prev:#c3c2b7; --accent:#2a78d6; --error:#d03b3b;
+    --rain:#2a78d6; --warm:#eb6834; --cold:#2a78d6; --prev:#c3c2b7; --error:#d03b3b;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-      --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --prev:#52514e; --accent:#3987e5;
+      --rain:#3987e5; --warm:#d95926; --cold:#3987e5; --prev:#52514e;
     }
   }
   :root[data-theme="dark"]{
     --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
     --grid:#2c2c2a; --axis:#383835; --border:#2c2c2a;
-    --strom:#3987e5; --gas:#d95926; --temp:#199e70; --ce:#9085e9; --warnc:#fab219; --prev:#52514e; --accent:#3987e5;
+    --rain:#3987e5; --warm:#d95926; --cold:#3987e5; --prev:#52514e;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -31,173 +31,138 @@
   h2{font-size:15px;margin:0 0 10px;font-weight:600}
   .sub{color:var(--ink2);margin:0 0 18px;font-size:13px}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
-  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:16px}
+  .section{margin-bottom:16px}
+  .now{display:grid;grid-template-columns:minmax(220px,1fr) 2fr;gap:16px;align-items:center}
+  .now .big{font-size:56px;font-weight:650;line-height:1;font-variant-numeric:tabular-nums}
+  .now .big small{font-size:22px;color:var(--ink2);font-weight:500}
+  .now .cond{font-size:18px;margin-top:6px}
+  .now .feel{color:var(--ink2);font-size:13px;margin-top:2px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .fact .l{font-size:12px;color:var(--ink2)}
+  .fact .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+  .days{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));gap:8px;overflow-x:auto}
+  .day{border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;min-width:120px}
+  .day .d{font-weight:600}
+  .day .e{font-size:28px;margin:4px 0}
+  .day .t{font-variant-numeric:tabular-nums}
+  .day .t .max{font-weight:650}
+  .day .t .min{color:var(--ink2)}
+  .day .r{font-size:13px;color:var(--ink2);margin-top:4px}
+  .day .r b{color:var(--ink)}
+  .charts2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+  .chartbox{position:relative;height:240px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
   .controls label{display:flex;flex-direction:column;font-size:12px;color:var(--ink2);gap:4px}
   input,select,button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--axis);border-radius:7px;padding:7px 10px}
   button{cursor:pointer}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary{background:var(--rain);border-color:var(--rain);color:#fff;font-weight:600}
   button:disabled{opacity:.5;cursor:default}
   .presets{display:flex;flex-wrap:wrap;gap:6px}
   .presets button{padding:5px 9px;font-size:13px}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin-bottom:12px}
+  .kpi{border:1px solid var(--border);border-radius:8px;padding:10px 12px}
   .kpi .l{font-size:12px;color:var(--ink2)}
-  .kpi .v{font-size:24px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+  .kpi .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
   .kpi .v small{font-size:13px;font-weight:500;color:var(--ink2);margin-left:3px}
-  .kpi .h{font-size:12px;color:var(--muted);margin-top:2px}
-  .kpi .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
-  .charts{display:grid;gap:12px;margin-bottom:16px}
-  .chartbox{position:relative;height:260px}
-  table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
-  th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
-  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
-  th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
-  .tablewrap{max-height:480px;overflow:auto}
-  .msg{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:14px}
-  .msg.err{border:1px solid var(--error);color:var(--error)}
-  .msg.info{border:1px solid var(--axis);color:var(--ink2)}
-  .msg.warn{border:1px solid var(--warnc);color:var(--ink)}
-  .msg.warn ul{margin:4px 0 0;padding-left:18px}
-  .costgrid{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}
-  .costgrid tbody td:nth-child(1),.costgrid tbody td:nth-child(2){white-space:normal}
-  .costgrid tbody td:nth-child(2),.costgrid th:nth-child(2){text-align:left}
-  .costgrid tfoot td{font-weight:650;border-top:1px solid var(--axis);border-bottom:0}
-  .costgrid tfoot td:last-child{text-align:right}
+  .kpi .h{font-size:12px;color:var(--muted)}
   .legend{display:flex;gap:14px;font-size:12px;color:var(--ink2);margin:-4px 0 8px}
   .legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--c)}
-  .hint{font-size:12px;color:var(--muted);margin:-4px 0 8px}
+  .msg{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:14px;border:1px solid var(--axis);color:var(--ink2)}
+  .msg.err{border-color:var(--error);color:var(--error)}
+  .note{font-size:12px;color:var(--muted);margin-top:16px}
   .hidden{display:none!important}
-  #login{max-width:340px;margin:12vh auto 0}
-  #login form{display:flex;flex-direction:column;gap:10px}
-  .remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
-  .remember input{width:16px;height:16px;padding:0}
-  .top{display:flex;justify-content:space-between;align-items:start;gap:12px}
-  .muted{color:var(--muted)}
-  @media (max-width:600px){ .kpi .v{font-size:20px} .chartbox{height:220px} }
+  @media (max-width:640px){ .now{grid-template-columns:1fr} .now .big{font-size:44px} .chartbox{height:210px} }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <h1>Wetter Diekirch</h1>
+  <p class="sub" id="stand">Lade aktuelle Daten …</p>
 
-  <!-- Login -->
-  <div id="login" class="card">
-    <h1>Energie-Monitor</h1>
-    <p class="sub">Strom · Gas · Wetter (Leneda)</p>
-    <form id="loginForm">
-      <input type="password" id="pw" placeholder="Passwort" autocomplete="current-password" required>
-      <label class="remember"><input type="checkbox" id="remember"> Angemeldet bleiben (30 Tage) – nur auf eigenen Geräten</label>
-      <button class="primary" type="submit" id="loginBtn">Anmelden</button>
-      <div id="loginMsg" class="msg err hidden"></div>
-    </form>
+  <div id="err" class="msg err hidden"></div>
+
+  <!-- Jetzt -->
+  <div class="card section now" id="nowCard">
+    <div>
+      <div class="big" id="nowT">–</div>
+      <div class="cond" id="nowCond"></div>
+      <div class="feel" id="nowFeel"></div>
+    </div>
+    <div class="facts" id="nowFacts"></div>
   </div>
 
-  <!-- App -->
-  <div id="app" class="hidden">
-    <div class="top">
-      <div>
-        <h1>Energie-Monitor</h1>
-        <p class="sub" id="subtitle">Zeitraum wählen und laden</p>
-      </div>
-      <button id="logout" type="button">Abmelden</button>
-    </div>
+  <!-- 48 h -->
+  <div class="charts2 section">
+    <div class="card"><h2>Temperatur – nächste 48 Stunden (°C)</h2><div class="chartbox"><canvas id="c48T"></canvas></div></div>
+    <div class="card"><h2>Niederschlag – nächste 48 Stunden (mm/h)</h2><div class="chartbox"><canvas id="c48R"></canvas></div></div>
+  </div>
 
-    <div class="card controls">
+  <!-- 7 Tage -->
+  <div class="card section">
+    <h2>Vorhersage 7 Tage</h2>
+    <div class="days" id="days"></div>
+  </div>
+
+  <!-- Rückblick -->
+  <div class="card section">
+    <h2>Rückblick</h2>
+    <div class="controls">
       <label>Von <input type="date" id="from"></label>
       <label>Bis <input type="date" id="to"></label>
-      <label>Auflösung
-        <select id="res">
-          <option value="auto">Automatisch</option>
-          <option value="15min">15 Minuten</option>
-          <option value="hour">Stunde</option>
-          <option value="day">Tag</option>
-        </select>
-      </label>
-      <button class="primary" id="load" type="button">Laden</button>
+      <button class="primary" id="load" type="button">Anzeigen</button>
       <div class="presets">
-        <button type="button" data-p="gestern">Gestern</button>
         <button type="button" data-p="7">7 Tage</button>
         <button type="button" data-p="30">30 Tage</button>
         <button type="button" data-p="monat">Dieser Monat</button>
         <button type="button" data-p="vormonat">Letzter Monat</button>
         <button type="button" data-p="jahr">Dieses Jahr</button>
+        <button type="button" data-p="vorjahr">Letztes Jahr</button>
       </div>
     </div>
-
-    <div id="msg" class="msg hidden"></div>
-
-    <div id="result" class="hidden">
-      <div id="warn" class="msg warn hidden"></div>
-      <div class="kpis" id="kpis"></div>
-      <div class="charts">
-        <div class="card"><h2 id="tStrom">Strom</h2><div class="legend hidden" id="legStrom"><span style="--c:var(--strom)">Lieferant (Nordenergie)</span><span style="--c:var(--ce)">Energiegemeinschaft</span></div><div class="chartbox"><canvas id="cStrom"></canvas></div></div>
-        <div class="card"><h2 id="tGas">Gas</h2><div class="chartbox"><canvas id="cGas"></canvas></div></div>
-        <div class="card"><h2>Außentemperatur (°C)</h2><div class="chartbox"><canvas id="cTemp"></canvas></div></div>
-        <div class="card"><h2>Gasverbrauch je Tag gegen Tagesmitteltemperatur</h2>
-          <p class="hint">Jeder Punkt = ein Tag. Je steiler die Wolke nach links ansteigt, desto stärker hängt der Gasverbrauch von der Kälte ab.</p>
-          <div class="chartbox"><canvas id="cScatter"></canvas></div></div>
-        <div class="card"><h2>Tageslastprofil Strom – Ø Leistung je Uhrzeit (kW)</h2>
-          <p class="hint">Mittelwert über alle Tage des Zeitraums; im Tooltip zusätzlich der Höchstwert.</p>
-          <div class="chartbox"><canvas id="cProfil"></canvas></div></div>
-        <div class="card"><h2 id="tKosten">Kostenverlauf (€)</h2>
-          <div class="legend"><span style="--c:var(--strom)">Strom</span><span style="--c:var(--gas)">Gas</span></div>
-          <div class="chartbox"><canvas id="cKosten"></canvas></div></div>
-      </div>
-      <div class="costgrid">
-        <div class="card"><h2>Kosten Strom – Aufschlüsselung</h2><div class="tablewrap"><table id="kStrom"></table></div></div>
-        <div class="card"><h2>Kosten Gas – Aufschlüsselung</h2><div class="tablewrap"><table id="kGas"></table></div></div>
-      </div>
-      <div class="card" style="margin-bottom:16px">
-        <h2>Monatsvergleich</h2>
-        <div class="controls" style="margin-bottom:8px">
-          <label>Jahr <select id="mYear"></select></label>
-          <label>Wert
-            <select id="mMetric">
-              <option value="kwh">Strom (kWh)</option>
-              <option value="m3">Gas (m³)</option>
-              <option value="kosten">Kosten gesamt (€)</option>
-              <option value="kStrom">Kosten Strom (€)</option>
-              <option value="kGas">Kosten Gas (€)</option>
-            </select>
-          </label>
-          <button type="button" id="mLoad">Anzeigen</button>
-          <span class="hint" id="mMsg">Beim ersten Abruf eines Jahres kann es 1–2 Minuten dauern.</span>
-        </div>
-        <div class="legend hidden" id="mLeg"><span id="mLegPrev" style="--c:var(--prev)"></span><span id="mLegCur" style="--c:var(--strom)"></span></div>
-        <div class="chartbox hidden" id="mBox"><canvas id="cMonate"></canvas></div>
-      </div>
-      <div class="card">
-        <h2>Tageswerte</h2>
-        <div class="tablewrap"><table id="tbl"></table></div>
+    <div id="hMsg" class="msg hidden"></div>
+    <div id="hResult" class="hidden">
+      <div class="kpis" id="hKpis"></div>
+      <div class="charts2">
+        <div><h2 id="tRain">Niederschlag (mm)</h2><div class="chartbox"><canvas id="cRain"></canvas></div></div>
+        <div><h2 id="tTemp">Temperatur (°C)</h2>
+          <div class="legend"><span style="--c:var(--warm)">Höchstwert</span><span style="--c:var(--cold)">Tiefstwert</span></div>
+          <div class="chartbox"><canvas id="cTemp"></canvas></div></div>
       </div>
     </div>
   </div>
+
+  <!-- Monatsvergleich -->
+  <div class="card section">
+    <h2>Niederschlag je Monat – Jahresvergleich</h2>
+    <div class="controls">
+      <label>Jahr <select id="mYear"></select></label>
+      <button type="button" id="mLoad">Anzeigen</button>
+    </div>
+    <div id="mMsg" class="msg hidden"></div>
+    <div id="mResult" class="hidden">
+      <div class="kpis" id="mKpis"></div>
+      <div class="legend"><span id="mLegPrev" style="--c:var(--prev)"></span><span id="mLegCur" style="--c:var(--rain)"></span></div>
+      <div class="chartbox"><canvas id="cMonths"></canvas></div>
+    </div>
+  </div>
+
+  <p class="note">
+    Daten: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (Wettermodelle bzw. ERA5-Reanalyse, CC BY 4.0)
+    für Diekirch (49,868° N, 6,159° O). Es sind Modellwerte für die Umgebung, keine Messungen einer Station in Diekirch –
+    lokale Schauer können abweichen.
+  </p>
 </div>
 
 <script>
-// ═══ KONFIGURATION ═══════════════════════════════════════════
-const API_URL = 'HIER_DIE_APPS_SCRIPT_WEBAPP_URL_EINTRAGEN';
-// ═════════════════════════════════════════════════════════════
+// ═══ Standort ═══
+const LAT = 49.868, LON = 6.159, TZ = 'Europe/Luxembourg';
 
 const $ = id => document.getElementById(id);
-const nf = (x, d = 1) => x == null ? '–' : x.toLocaleString('de-LU', { minimumFractionDigits: d, maximumFractionDigits: d });
-const eur = x => x == null ? '–' : x.toLocaleString('de-LU', { style: 'currency', currency: 'EUR' });
-// Token statt Passwort speichern: localStorage = "angemeldet bleiben", sessionStorage = nur dieser Tab
-const tokenStore = {
-  get() {
-    for (const s of ['localStorage', 'sessionStorage']) {
-      try { const t = window[s].getItem('emToken'); if (t && Number(t.split('.')[0]) > Date.now()) return t; } catch (e) {}
-    }
-    return null;
-  },
-  set(t, remember) {
-    this.clear();
-    try { window[remember ? 'localStorage' : 'sessionStorage'].setItem('emToken', t); } catch (e) {}
-  },
-  clear() {
-    for (const s of ['localStorage', 'sessionStorage']) { try { window[s].removeItem('emToken'); } catch (e) {} }
-  }
-};
-let token = tokenStore.get();
+const nf = (x, d = 1) => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('de-LU', { minimumFractionDigits: d, maximumFractionDigits: d });
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const charts = {};
+const MONATE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const TAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
 const WMO = {
   0: ['☀️', 'Klar'], 1: ['🌤️', 'Überwiegend klar'], 2: ['⛅', 'Teilweise bewölkt'], 3: ['☁️', 'Bedeckt'],
@@ -211,260 +176,231 @@ const WMO = {
   85: ['🌨️', 'Schneeschauer'], 86: ['🌨️', 'Schneeschauer'],
   95: ['⛈️', 'Gewitter'], 96: ['⛈️', 'Gewitter mit Hagel'], 99: ['⛈️', 'Gewitter mit Hagel']
 };
-const wmo = c => (c === null || c === '' || c === undefined) ? '–' : (WMO[c] ? WMO[c].join(' ') : 'Code ' + c);
+const wIcon = c => (WMO[c] || ['❔'])[0];
+const wText = c => (WMO[c] || ['', 'Code ' + c])[1];
+const windDir = deg => deg == null ? '' : ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 
-async function api(body) {
-  if (API_URL.startsWith('HIER_')) throw new Error('API_URL in index.html ist noch nicht eingetragen.');
-  // Content-Type text/plain → kein CORS-Preflight, Apps Script akzeptiert das
-  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ ...body, token }) });
+// Datum als JJJJ-MM-TT in Lokalzeit
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const addDays = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+const today = () => iso(new Date());
+const fmtDate = s => s.split('-').reverse().join('.');
+
+async function getJSON(url) {
+  const r = await fetch(url);
   const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'Unbekannter Fehler');
+  if (!r.ok || j.error) throw new Error(j.reason || ('HTTP ' + r.status));
   return j;
 }
 
-function showMsg(text, type = 'err') {
-  const m = $('msg');
-  m.textContent = text; m.className = 'msg ' + type;
-}
-function hideMsg() { $('msg').className = 'msg hidden'; }
+// ── Aktuell + Vorhersage ──
+async function loadForecast() {
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + LAT + '&longitude=' + LON +
+    '&timezone=' + encodeURIComponent(TZ) + '&forecast_days=7' +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day' +
+    '&hourly=temperature_2m,precipitation,precipitation_probability,weather_code' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunrise,sunset,sunshine_duration';
+  const j = await getJSON(url);
+  const c = j.current;
+  $('stand').textContent = 'Stand: ' + c.time.slice(8, 10) + '.' + c.time.slice(5, 7) + '.' + c.time.slice(0, 4) + ', ' + c.time.slice(11) + ' Uhr';
+  $('nowT').innerHTML = nf(c.temperature_2m, 1) + '<small> °C</small>';
+  $('nowCond').textContent = wIcon(c.weather_code) + ' ' + wText(c.weather_code);
+  $('nowFeel').textContent = 'gefühlt ' + nf(c.apparent_temperature, 1) + ' °C';
+  const d0 = j.daily;
+  const fact = (l, v) => `<div class="fact"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+  $('nowFacts').innerHTML =
+    fact('Heute', `${nf(d0.temperature_2m_min[0], 0)} / ${nf(d0.temperature_2m_max[0], 0)} °C`) +
+    fact('Niederschlag heute', `${nf(d0.precipitation_sum[0], 1)} mm`) +
+    fact('Regenrisiko heute', `${nf(d0.precipitation_probability_max[0], 0)} %`) +
+    fact('Wind', `${nf(c.wind_speed_10m, 0)} km/h ${windDir(c.wind_direction_10m)}`) +
+    fact('Böen', `${nf(c.wind_gusts_10m, 0)} km/h`) +
+    fact('Luftfeuchte', `${nf(c.relative_humidity_2m, 0)} %`) +
+    fact('Luftdruck', `${nf(c.pressure_msl, 0)} hPa`) +
+    fact('Sonne', `${d0.sunrise[0].slice(11)} – ${d0.sunset[0].slice(11)}`);
 
-// ── Login ──
-$('loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('loginBtn').disabled = true;
-  $('loginMsg').classList.add('hidden');
-  try {
-    token = null;
-    const remember = $('remember').checked;
-    const j = await api({ action: 'login', password: $('pw').value, remember });
-    token = j.token;
-    tokenStore.set(token, remember);
-    $('pw').value = '';
-    showApp();
-    load();
-  } catch (err) {
-    $('loginMsg').textContent = err.message;
-    $('loginMsg').classList.remove('hidden');
-  } finally { $('loginBtn').disabled = false; }
-});
-$('logout').addEventListener('click', () => {
-  tokenStore.clear(); token = null; monCache = {};
-  $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pw').value = '';
-});
-function showApp() {
-  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  // 48 Stunden ab jetzt
+  const h = j.hourly;
+  const nowKey = c.time.slice(0, 13);
+  let i0 = h.time.findIndex(t => t.slice(0, 13) === nowKey);
+  if (i0 < 0) i0 = 0;
+  const idx = [...Array(48).keys()].map(k => i0 + k).filter(i => i < h.time.length);
+  const labels = idx.map(i => TAGE[new Date(h.time[i]).getDay()] + ' ' + h.time[i].slice(11, 16));
+  drawChart('c48T', 'line', labels, [{ data: idx.map(i => h.temperature_2m[i]), color: css('--warm') }], '°C',
+    k => [wIcon(h.weather_code[idx[k]]) + ' ' + wText(h.weather_code[idx[k]])]);
+  drawChart('c48R', 'bar', labels, [{ data: idx.map(i => h.precipitation[i]), color: css('--rain') }], 'mm',
+    k => [`Regenwahrscheinlichkeit: ${nf(h.precipitation_probability[idx[k]], 0)} %`], { suggestedMax: 1 });
+
+  // 7 Tage
+  $('days').innerHTML = d0.time.map((t, i) => {
+    const wd = i === 0 ? 'Heute' : i === 1 ? 'Morgen' : TAGE[new Date(t + 'T12:00:00').getDay()];
+    return `<div class="day" title="${wText(d0.weather_code[i])}">
+      <div class="d">${wd}</div><div class="muted" style="font-size:12px;color:var(--muted)">${t.slice(8, 10)}.${t.slice(5, 7)}.</div>
+      <div class="e">${wIcon(d0.weather_code[i])}</div>
+      <div class="t"><span class="max">${nf(d0.temperature_2m_max[i], 0)}°</span> / <span class="min">${nf(d0.temperature_2m_min[i], 0)}°</span></div>
+      <div class="r">💧 <b>${nf(d0.precipitation_sum[i], 1)} mm</b> · ${nf(d0.precipitation_probability_max[i], 0)} %</div>
+      <div class="r">💨 ${nf(d0.wind_speed_10m_max[i], 0)} km/h (Böen ${nf(d0.wind_gusts_10m_max[i], 0)})</div>
+      <div class="r">☀️ ${nf(d0.sunshine_duration[i] / 3600, 1)} h</div>
+    </div>`;
+  }).join('');
 }
 
-// ── Zeitraum ──
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// ── Historische Tageswerte (Archiv + letzte Tage aus der Vorhersage-API) ──
+const DAILY_HIST = 'weather_code,temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,precipitation_hours,sunshine_duration,wind_gusts_10m_max';
+async function loadDaily(from, to) {
+  const t = today();
+  if (to > t) to = t;
+  const archEnd = addDays(t, -6);          // Archiv hat ca. 5 Tage Verzögerung
+  const parts = [];
+  if (from <= archEnd) parts.push(['https://archive-api.open-meteo.com/v1/archive', from, to < archEnd ? to : archEnd]);
+  if (to > archEnd) parts.push(['https://api.open-meteo.com/v1/forecast', from > archEnd ? from : addDays(archEnd, 1), to]);
+  const res = await Promise.all(parts.map(([host, a, b]) => getJSON(host + '?latitude=' + LAT + '&longitude=' + LON +
+    '&timezone=' + encodeURIComponent(TZ) + '&start_date=' + a + '&end_date=' + b + '&daily=' + DAILY_HIST)));
+  const rows = [];
+  res.forEach(j => j.daily.time.forEach((d, i) => rows.push({
+    d, code: j.daily.weather_code[i], tmax: j.daily.temperature_2m_max[i], tmin: j.daily.temperature_2m_min[i],
+    tmean: j.daily.temperature_2m_mean[i], rain: j.daily.precipitation_sum[i], rainH: j.daily.precipitation_hours[i],
+    sun: j.daily.sunshine_duration[i], gust: j.daily.wind_gusts_10m_max[i]
+  })));
+  return rows.filter(r => r.rain != null || r.tmax != null);
+}
+
 function preset(p) {
   const t = new Date(); t.setHours(12, 0, 0, 0);
-  const y = new Date(t); y.setDate(y.getDate() - 1);
-  let f = new Date(y), to = new Date(y);
-  if (p === '7') f.setDate(y.getDate() - 6);
-  else if (p === '30') f.setDate(y.getDate() - 29);
-  else if (p === 'monat') { f = new Date(t.getFullYear(), t.getMonth(), 1, 12); }
+  let f = new Date(t), to = new Date(t);
+  if (p === '7') f.setDate(t.getDate() - 6);
+  else if (p === '30') f.setDate(t.getDate() - 29);
+  else if (p === 'monat') f = new Date(t.getFullYear(), t.getMonth(), 1, 12);
   else if (p === 'vormonat') { f = new Date(t.getFullYear(), t.getMonth() - 1, 1, 12); to = new Date(t.getFullYear(), t.getMonth(), 0, 12); }
-  else if (p === 'jahr') { f = new Date(t.getFullYear(), 0, 1, 12); }
-  if (f > to) f = new Date(to);
+  else if (p === 'jahr') f = new Date(t.getFullYear(), 0, 1, 12);
+  else if (p === 'vorjahr') { f = new Date(t.getFullYear() - 1, 0, 1, 12); to = new Date(t.getFullYear() - 1, 11, 31, 12); }
   $('from').value = iso(f); $('to').value = iso(to);
 }
-document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { preset(b.dataset.p); load(); }));
-$('load').addEventListener('click', load);
+document.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { preset(b.dataset.p); loadHistory(); }));
+$('load').addEventListener('click', loadHistory);
 
-async function load() {
+async function loadHistory() {
   const from = $('from').value, to = $('to').value;
-  if (!from || !to) return showMsg('Bitte Von und Bis wählen.');
+  const m = $('hMsg');
+  if (!from || !to || from > to) { m.textContent = 'Bitte gültigen Zeitraum wählen.'; m.className = 'msg err'; return; }
+  m.textContent = 'Lade …'; m.className = 'msg';
   $('load').disabled = true;
-  showMsg('Lade Daten … beim ersten Abruf eines langen Zeitraums kann das bis zu einer Minute dauern.', 'info');
   try {
-    const d = await api({ action: 'data', from, to, res: $('res').value });
-    hideMsg();
-    render(d);
-  } catch (err) {
-    showMsg(err.message);
-    if (/Passwort|Anmeldung abgelaufen/.test(err.message)) {
-      $('logout').click();
-      $('loginMsg').textContent = err.message;
-      $('loginMsg').classList.remove('hidden');
-    }
+    const rows = await loadDaily(from, to);
+    if (!rows.length) throw new Error('Keine Daten für diesen Zeitraum.');
+    m.className = 'msg hidden';
+    renderHistory(rows);
+  } catch (e) {
+    m.textContent = 'Fehler: ' + e.message; m.className = 'msg err';
   } finally { $('load').disabled = false; }
 }
 
-// ── Darstellung ──
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const resName = { '15min': '15 Minuten', hour: 'Stunde', day: 'Tag' };
-const fmtLabel = (s, res) => {
-  const [d, t] = s.split(' ');
-  const [Y, M, D] = d.split('-');
-  if (res === 'day') return D + '.' + M + '.';
-  return D + '.' + M + '. ' + (t || '');
-};
+function renderHistory(rows) {
+  const sum = rows.reduce((a, r) => a + (r.rain || 0), 0);
+  const rainDays = rows.filter(r => r.rain >= 1).length;
+  const wettest = rows.reduce((a, r) => (r.rain || 0) > (a.rain || 0) ? r : a, rows[0]);
+  const warm = rows.reduce((a, r) => r.tmax > a.tmax ? r : a, rows[0]);
+  const cold = rows.reduce((a, r) => r.tmin < a.tmin ? r : a, rows[0]);
+  const means = rows.filter(r => r.tmean != null);
+  const tAvg = means.reduce((a, r) => a + r.tmean, 0) / (means.length || 1);
+  const sunH = rows.reduce((a, r) => a + (r.sun || 0), 0) / 3600;
+  let dry = 0, cur = 0;
+  rows.forEach(r => { cur = (r.rain || 0) < 1 ? cur + 1 : 0; dry = Math.max(dry, cur); });
+  const kpi = (l, v, u, h) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="h">${h || ''}</div></div>`;
+  $('hKpis').innerHTML =
+    kpi('Niederschlag gesamt', nf(sum, 1), 'mm', `${rows.length} Tage`) +
+    kpi('Regentage (≥ 1 mm)', rainDays, '', `${nf(rainDays / rows.length * 100, 0)} % der Tage`) +
+    kpi('Nassester Tag', nf(wettest.rain, 1), 'mm', fmtDate(wettest.d)) +
+    kpi('Längste Trockenphase', dry, 'Tage', 'am Stück < 1 mm') +
+    kpi('Ø Temperatur', nf(tAvg, 1), '°C', '') +
+    kpi('Wärmster Tag', nf(warm.tmax, 1), '°C', fmtDate(warm.d)) +
+    kpi('Kältester Tag', nf(cold.tmin, 1), '°C', fmtDate(cold.d)) +
+    kpi('Sonnenstunden', nf(sunH, 0), 'h', '');
 
-function kpi(label, value, unit, hint, color) {
-  return `<div class="card kpi"><div class="l">${color ? `<span class="sw" style="background:${color}"></span>` : ''}${label}</div>
-    <div class="v">${value}${unit ? `<small>${unit}</small>` : ''}</div>${hint ? `<div class="h">${hint}</div>` : ''}</div>`;
-}
-
-function render(d) {
-  const k = d.kpi;
-  const fmtDate = s => s.split('-').reverse().join('.');
-  $('subtitle').textContent = `${fmtDate(d.from)} – ${fmtDate(d.to)} · ${d.days} Tag${d.days > 1 ? 'e' : ''} · Auflösung: ${resName[d.res]}`;
-
-  // Warnungen
-  const w = $('warn');
-  if (d.warnungen && d.warnungen.length) {
-    w.innerHTML = '<strong>⚠ Hinweise</strong><ul>' + d.warnungen.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
-    w.classList.remove('hidden');
-  } else w.classList.add('hidden');
-
-  const voll = v => v != null && v < 0.98 ? `⚠ nur ${Math.round(v * 100)} % der Werte vorhanden` : '';
-  const total = (k.stromKosten || 0) + (k.gasKosten || 0);
-  const ct = (eurv, kwh) => eurv != null && kwh ? `Ø ${nf(eurv / kwh * 100, 1)} ct/kWh` : '';
-  const unv = ok => ok ? '' : ' ⚠ unvollständig';
-  $('kpis').innerHTML =
-    kpi('Strom gesamt', nf(k.stromKwh, 1), 'kWh', voll(k.stromVollstaendig) || `Lieferant ${nf(k.stromRestKwh, 0)} · Gemeinschaft ${nf(k.stromGeteiltKwh, 0)} kWh`, css('--strom')) +
-    kpi('Stromspitze (15 min)', nf(k.peakKw, 2), 'kW', k.peakT ? fmtLabel(k.peakT, 'x') + ' Uhr' : '', css('--strom')) +
-    kpi('Gas', nf(k.gasM3, 1), 'm³', voll(k.gasVollstaendig) || `${nf(k.gasKwh, 0)} kWh`, css('--gas')) +
-    kpi('Außentemperatur Ø', nf(k.tAvg, 1), '°C', k.tMin != null ? `min ${nf(k.tMin, 1)} / max ${nf(k.tMax, 1)} °C` : '', css('--temp')) +
-    kpi('Kosten Strom', eur(k.stromKosten), '', ct(k.stromKosten, k.stromKwh) + unv(k.stromKostenVollst)) +
-    kpi('Kosten Gas', eur(k.gasKosten), '', ct(k.gasKosten, k.gasKwh) + unv(k.gasKostenVollst)) +
-    kpi('Kosten gesamt', eur(total), '', 'inkl. MwSt.' + unv(k.stromKostenVollst && k.gasKostenVollst));
-
-  // Strom
-  const is15 = d.res === '15min';
-  const sLabels = d.strom.map(r => fmtLabel(r[0], d.res));
-  $('tStrom').textContent = is15 ? 'Strom – Leistung (kW, 15-min-Mittel)' : `Strom – Verbrauch pro ${resName[d.res]} (kWh)`;
-  $('legStrom').classList.toggle('hidden', is15);
-  if (is15) {
-    drawChart('cStrom', 'line', sLabels, [{ data: d.strom.map(r => r[2]), color: css('--strom') }], 'kW', () => []);
-  } else {
-    drawChart('cStrom', 'bar', sLabels, [
-      { label: 'Lieferant', data: d.strom.map(r => r[4]), color: css('--strom') },
-      { label: 'Energiegemeinschaft', data: d.strom.map(r => r[5]), color: css('--ce') }
-    ], 'kWh', i => [`Gesamt: ${nf(d.strom[i][1], 2)} kWh`, `Spitze: ${nf(d.strom[i][2], 2)} kW (${fmtLabel(d.strom[i][3], 'x')})`], true);
-  }
-
-  // Gas
-  $('tGas').textContent = `Gas – Verbrauch pro ${resName[d.gasRes]} (m³)`;
-  drawChart('cGas', 'bar', d.gas.map(r => fmtLabel(r[0], d.gasRes)), [{ data: d.gas.map(r => r[1]), color: css('--gas') }], 'm³',
-    i => [`${nf(d.gas[i][2], 1)} kWh`]);
-
-  // Temperatur
-  drawChart('cTemp', 'line', d.wetter.map(r => fmtLabel(r[0], d.gasRes)), [{ data: d.wetter.map(r => r[1]), color: css('--temp') }], '°C',
-    i => [`min ${nf(d.wetter[i][2], 1)} / max ${nf(d.wetter[i][3], 1)} °C`, wmo(d.wetter[i][4])]);
-
-  // Gas gegen Temperatur (Punktwolke je Tag)
-  const pts = d.tage.filter(t => t.tavg != null && t.m3 != null && t.vollstaendig > 0.9).map(t => ({ x: t.tavg, y: t.m3, datum: t.datum }));
-  if (charts.cScatter) charts.cScatter.destroy();
-  charts.cScatter = new Chart($('cScatter'), {
-    type: 'scatter',
-    data: { datasets: [{ data: pts, backgroundColor: css('--gas'), borderColor: css('--surface'), borderWidth: 2, pointRadius: 5, pointHoverRadius: 7 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: {
-        label: c => `${fmtDate(c.raw.datum)}: ${nf(c.raw.y, 2)} m³ bei Ø ${nf(c.raw.x, 1)} °C` } } },
-      scales: {
-        x: { title: { display: true, text: 'Ø Außentemperatur (°C)', color: css('--muted') }, grid: { color: css('--grid') }, ticks: { color: css('--muted') } },
-        y: { beginAtZero: true, title: { display: true, text: 'Gas (m³/Tag)', color: css('--muted') }, grid: { color: css('--grid') }, ticks: { color: css('--muted') }, border: { display: false } }
-      }
-    }
-  });
-
-  // Tageslastprofil
-  drawChart('cProfil', 'line', d.profil.map(r => r[0]), [{ data: d.profil.map(r => r[1]), color: css('--strom') }], 'kW',
-    i => [`Höchstwert: ${nf(d.profil[i][2], 2)} kW`]);
-
-  // Kostenverlauf (Tag, ab 63 Tagen pro Monat)
-  let kl = [], ks = [], kg = [];
-  if (d.tage.length > 62) {
+  // ab 93 Tagen: Monatssummen
+  const monthly = rows.length > 92;
+  let labels, rain, tmax, tmin, extra;
+  if (monthly) {
     const mm = new Map();
-    d.tage.forEach(t => {
-      const k = t.datum.slice(0, 7);
-      const m = mm.get(k) || mm.set(k, { s: null, g: null }).get(k);
-      if (t.kostenStrom != null) m.s = (m.s || 0) + t.kostenStrom;
-      if (t.kostenGas != null) m.g = (m.g || 0) + t.kostenGas;
+    rows.forEach(r => {
+      const k = r.d.slice(0, 7);
+      const m = mm.get(k) || mm.set(k, { rain: 0, tmax: null, tmin: null, days: 0, rd: 0 }).get(k);
+      m.rain += r.rain || 0; m.days++; if (r.rain >= 1) m.rd++;
+      if (m.tmax === null || r.tmax > m.tmax) m.tmax = r.tmax;
+      if (m.tmin === null || r.tmin < m.tmin) m.tmin = r.tmin;
     });
-    mm.forEach((v, k) => { kl.push(MONATE[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4)); ks.push(v.s); kg.push(v.g); });
-    $('tKosten').textContent = 'Kostenverlauf pro Monat (€)';
+    const ks = [...mm.keys()];
+    labels = ks.map(k => MONATE[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4));
+    rain = ks.map(k => mm.get(k).rain);
+    tmax = ks.map(k => mm.get(k).tmax); tmin = ks.map(k => mm.get(k).tmin);
+    extra = i => [`Regentage: ${mm.get(ks[i]).rd} von ${mm.get(ks[i]).days}`];
+    $('tRain').textContent = 'Niederschlag pro Monat (mm)';
+    $('tTemp').textContent = 'Höchst- und Tiefstwert pro Monat (°C)';
   } else {
-    d.tage.forEach(t => { kl.push(fmtLabel(t.datum, 'day')); ks.push(t.kostenStrom); kg.push(t.kostenGas); });
-    $('tKosten').textContent = 'Kostenverlauf pro Tag (€)';
+    labels = rows.map(r => r.d.slice(8, 10) + '.' + r.d.slice(5, 7) + '.');
+    rain = rows.map(r => r.rain); tmax = rows.map(r => r.tmax); tmin = rows.map(r => r.tmin);
+    extra = i => [wIcon(rows[i].code) + ' ' + wText(rows[i].code), `Regen-Stunden: ${nf(rows[i].rainH, 0)}`];
+    $('tRain').textContent = 'Niederschlag pro Tag (mm)';
+    $('tTemp').textContent = 'Höchst- und Tiefstwert pro Tag (°C)';
   }
-  drawChart('cKosten', 'bar', kl, [
-    { label: 'Strom', data: ks, color: css('--strom') },
-    { label: 'Gas', data: kg, color: css('--gas') }
-  ], '€', i => [`Gesamt: ${eur((ks[i] || 0) + (kg[i] || 0))}`], true);
-
-  // Kostenaufschlüsselung
-  const costTable = (rows, sum) => `<thead><tr><th>Posten</th><th>Basis</th><th>Menge</th><th>Preis brutto</th><th>Betrag</th></tr></thead>
-    <tbody>${rows.map(p => `<tr><td>${esc(p.posten)}</td><td>${esc(p.basis)}</td><td>${nf(p.menge, 2)}</td>
-      <td>${p.preis.map(x => nf(x, Math.abs(x) < 1 ? 5 : 2)).join(' / ')} €</td><td>${eur(p.eur)}</td></tr>`).join('') ||
-      '<tr><td colspan="5" class="muted">Keine Preise für diesen Zeitraum hinterlegt</td></tr>'}</tbody>
-    <tfoot><tr><td colspan="4">Summe</td><td>${eur(sum)}</td></tr></tfoot>`;
-  $('kStrom').innerHTML = costTable(d.kosten.Strom, k.stromKosten);
-  $('kGas').innerHTML = costTable(d.kosten.Gas, k.gasKosten);
-
-  // Tabelle
-  const rows = d.tage.map(t => `<tr>
-      <td>${fmtDate(t.datum)}</td><td>${wmo(t.code)}</td>
-      <td>${nf(t.tmin, 1)}</td><td>${nf(t.tmax, 1)}</td>
-      <td>${nf(t.kwh, 2)}${t.vollstaendig != null && t.vollstaendig < 0.98 ? ' <span class="muted" title="Werte unvollständig">*</span>' : ''}</td>
-      <td>${nf(t.geteilt, 2)}</td><td>${nf(t.peak, 2)}</td><td>${nf(t.m3, 2)}</td><td>${nf(t.gkwh, 1)}</td>
-      <td>${eur(t.kostenStrom)}</td><td>${eur(t.kostenGas)}</td></tr>`).join('');
-  $('tbl').innerHTML = `<thead><tr><th>Datum</th><th>Wetter (stärkstes)</th><th>T min °C</th><th>T max °C</th>
-      <th>Strom kWh</th><th>davon Gem. kWh</th><th>Spitze kW</th><th>Gas m³</th><th>Gas kWh</th><th>Strom €</th><th>Gas €</th></tr></thead><tbody>${rows}</tbody>`;
-  $('result').classList.remove('hidden');
+  drawChart('cRain', 'bar', labels, [{ data: rain, color: css('--rain') }], 'mm', extra, { suggestedMax: 5 });
+  drawChart('cTemp', 'line', labels, [
+    { label: 'Höchstwert', data: tmax, color: css('--warm') },
+    { label: 'Tiefstwert', data: tmin, color: css('--cold') }
+  ], '°C', () => []);
+  $('hResult').classList.remove('hidden');
 }
 
-const MONATE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-
-// ── Monatsvergleich ──
-let monCache = {};
-(function initYears() {
+// ── Jahresvergleich ──
+(function () {
   const y = new Date().getFullYear();
-  $('mYear').innerHTML = [0, 1, 2, 3].map(i => `<option>${y - i}</option>`).join('');
+  $('mYear').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<option>${y - i}</option>`).join('');
 })();
 $('mLoad').addEventListener('click', async () => {
   const y = Number($('mYear').value);
-  $('mLoad').disabled = true; $('mMsg').textContent = 'Lade …';
+  const m = $('mMsg');
+  m.textContent = 'Lade …'; m.className = 'msg'; $('mLoad').disabled = true;
   try {
-    monCache[y] = monCache[y] || await api({ action: 'monate', year: y });
-    $('mMsg').textContent = monCache[y].warnungen.length ? '⚠ ' + monCache[y].warnungen.join(' · ') : '';
-    drawMonths();
-  } catch (err) {
-    $('mMsg').textContent = err.message;
+    const rows = await loadDaily((y - 1) + '-01-01', y + '-12-31');
+    const sums = { [y - 1]: Array(12).fill(null), [y]: Array(12).fill(null) };
+    rows.forEach(r => {
+      const yy = Number(r.d.slice(0, 4)), mi = Number(r.d.slice(5, 7)) - 1;
+      sums[yy][mi] = (sums[yy][mi] || 0) + (r.rain || 0);
+    });
+    const tot = yy => sums[yy].reduce((a, v) => a + (v || 0), 0);
+    // Vergleich bis zum gleichen Datum im Vorjahr
+    const lastDay = rows.length ? rows[rows.length - 1].d : today();
+    const sameP = rows.filter(r => r.d.startsWith(String(y - 1)) && r.d.slice(5) <= lastDay.slice(5)).reduce((a, r) => a + (r.rain || 0), 0);
+    const kpi = (l, v, u, h) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="h">${h || ''}</div></div>`;
+    const isCur = y === new Date().getFullYear();
+    $('mKpis').innerHTML =
+      kpi(`Niederschlag ${y}`, nf(tot(y), 0), 'mm', isCur ? `bis ${fmtDate(lastDay)}` : 'ganzes Jahr') +
+      kpi(`Niederschlag ${y - 1}`, nf(tot(y - 1), 0), 'mm', 'ganzes Jahr') +
+      (isCur ? kpi(`${y - 1} bis ${lastDay.slice(8, 10)}.${lastDay.slice(5, 7)}.`, nf(sameP, 0), 'mm',
+        `${tot(y) >= sameP ? '+' : ''}${nf((tot(y) / sameP - 1) * 100, 0)} % in ${y}`) : '');
+    $('mLegPrev').textContent = y - 1; $('mLegCur').textContent = y;
+    drawChart('cMonths', 'bar', MONATE, [
+      { label: String(y - 1), data: sums[y - 1], color: css('--prev') },
+      { label: String(y), data: sums[y], color: css('--rain') }
+    ], 'mm', i => sums[y][i] != null && sums[y - 1][i] ? [`Änderung: ${sums[y][i] >= sums[y - 1][i] ? '+' : ''}${nf((sums[y][i] / sums[y - 1][i] - 1) * 100, 0)} %`] : []);
+    m.className = 'msg hidden';
+    $('mResult').classList.remove('hidden');
+  } catch (e) {
+    m.textContent = 'Fehler: ' + e.message; m.className = 'msg err';
   } finally { $('mLoad').disabled = false; }
 });
-$('mMetric').addEventListener('change', () => { if (monCache[$('mYear').value]) drawMonths(); });
-function drawMonths() {
-  const y = Number($('mYear').value), r = monCache[y], m = $('mMetric').value;
-  const val = x => x == null ? null : m === 'kosten' ? (x.kStrom == null && x.kGas == null ? null : (x.kStrom || 0) + (x.kGas || 0)) : x[m];
-  const unit = m === 'kwh' ? 'kWh' : m === 'm3' ? 'm³' : '€';
-  const color = m === 'm3' || m === 'kGas' ? css('--gas') : css('--strom');
-  $('mLegPrev').textContent = y - 1; $('mLegCur').textContent = y;
-  $('mLegCur').style.setProperty('--c', color);
-  $('mLeg').classList.remove('hidden'); $('mBox').classList.remove('hidden');
-  const prev = r.jahre[y - 1].map(val), cur = r.jahre[y].map(val);
-  drawChart('cMonate', 'bar', MONATE, [
-    { label: String(y - 1), data: prev, color: css('--prev') },
-    { label: String(y), data: cur, color }
-  ], unit, i => prev[i] && cur[i] ? [`Änderung: ${cur[i] >= prev[i] ? '+' : ''}${nf((cur[i] / prev[i] - 1) * 100, 1)} %`] : []);
-}
 
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-
-function drawChart(id, type, labels, series, unit, extra, stacked) {
+// ── Diagramm-Helfer ──
+function drawChart(id, type, labels, series, unit, extra, opts = {}) {
   if (charts[id]) charts[id].destroy();
-  const grid = css('--grid'), muted = css('--muted'), surface = css('--surface');
+  const muted = css('--muted');
   charts[id] = new Chart($(id), {
     type,
     data: { labels, datasets: series.map(s => ({
-      label: s.label || '', data: s.data, borderColor: type === 'bar' ? surface : s.color, backgroundColor: s.color,
+      label: s.label || '', data: s.data, borderColor: type === 'bar' ? css('--surface') : s.color, backgroundColor: s.color,
       borderWidth: type === 'bar' ? { top: 2, right: 0, bottom: 0, left: 0 } : 2,
-      pointRadius: 0, pointHoverRadius: 5, tension: 0.2,
-      borderRadius: stacked ? 0 : { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom',
-      categoryPercentage: 0.9, barPercentage: 0.9, spanGaps: false
+      pointRadius: 0, pointHoverRadius: 5, tension: 0.25,
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom',
+      categoryPercentage: 0.9, barPercentage: 0.9
     }))},
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
@@ -472,21 +408,22 @@ function drawChart(id, type, labels, series, unit, extra, stacked) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: {
-          label: c => c.parsed.y == null ? null : `${c.dataset.label ? c.dataset.label + ': ' : ''}${unit === '€' ? eur(c.parsed.y) : nf(c.parsed.y, unit === '°C' ? 1 : 2) + ' ' + unit}`,
+          label: c => c.parsed.y == null ? null : `${c.dataset.label ? c.dataset.label + ': ' : ''}${nf(c.parsed.y, 1)} ${unit}`,
           footer: items => items.length ? extra(items[0].dataIndex) : []
         }}
       },
       scales: {
-        x: { stacked: !!stacked, grid: { display: false }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, border: { color: css('--axis') } },
-        y: { stacked: !!stacked, beginAtZero: unit !== '°C', grid: { color: grid }, ticks: { color: muted }, border: { display: false } }
+        x: { grid: { display: false }, ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, border: { color: css('--axis') } },
+        y: { beginAtZero: unit !== '°C', suggestedMax: opts.suggestedMax, grid: { color: css('--grid') }, ticks: { color: muted }, border: { display: false } }
       }
     }
   });
 }
 
 // ── Start ──
-preset('7');
-if (token) { showApp(); load(); }
+loadForecast().catch(e => { $('err').textContent = 'Vorhersage konnte nicht geladen werden: ' + e.message; $('err').classList.remove('hidden'); });
+preset('30');
+loadHistory();
 </script>
 </body>
 </html>
