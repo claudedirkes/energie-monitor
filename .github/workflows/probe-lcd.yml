@@ -17,19 +17,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Dateien laden
         run: |
-          mkdir -p data/probe
-          cd data/probe
-          curl -sS -A "Mozilla/5.0" -o index.html -w "index %{http_code}\n" https://meteo.lcd.lu/ > status.txt 2>&1 || true
-          # alle Links auf .dat/.xls(x)/.zip sammeln
-          grep -oiE 'href="[^"]+\.(dat|xlsx?|zip|txt|csv)"' index.html | sed -E 's/href="//I; s/"$//' > links.txt || true
-          # zwei Monatsdateien (2025 + 2026) und die "today"-Seite probieren
-          for f in $(grep -iE '(^|/)2025/.*\.dat$|25\.dat$' links.txt | tail -1) $(grep -iE '(^|/)2026/.*\.dat$|26\.dat$' links.txt | tail -1); do
-            case "$f" in http*) u="$f";; /*) u="https://meteo.lcd.lu$f";; *) u="https://meteo.lcd.lu/$f";; esac
-            n=$(basename "$f")
-            curl -sS -A "Mozilla/5.0" -o "$n" -w "$n %{http_code} %{size_download}\n" "$u" >> status.txt 2>&1 || true
+          mkdir -p data/probe && cd data/probe && rm -f *.dat *.xls* status.txt
+          # Wohin leitet die Startseite? (Header)
+          curl -sSIL -A "Mozilla/5.0" https://meteo.lcd.lu/ | grep -iE "^(HTTP|location|content-location)" > status.txt || true
+          for u in \
+            https://meteo.lcd.lu/today.dat \
+            https://meteo.lcd.lu/2026/aug26.dat \
+            https://meteo.lcd.lu/data/2026/aug26.dat \
+            https://meteo.lcd.lu/data/aug26.dat \
+            https://meteo.lcd.lu/ALL_dat/all_2024.dat \
+            https://meteo.lcd.lu/data/ALL_dat/all_2024.dat \
+            https://meteo.lcd.lu/2024_only.xlsx \
+            https://meteo.lcd.lu/data/2024_only.xlsx \
+            https://meteo.lcd.lu/datafile_description.xls \
+            https://meteo.lcd.lu/data/datafile_description.xls ; do
+            n=$(echo "$u" | sed 's#https://meteo.lcd.lu/##; s#/#_#g')
+            curl -sSL -A "Mozilla/5.0" -o "$n" -w "$u %{http_code} %{size_download}\n" "$u" >> status.txt 2>&1 || true
+            # 404-Seiten wieder löschen, große Dateien kürzen (nur Kopf + Ende behalten)
+            if grep -q "404 Not Found" "$n" 2>/dev/null; then rm -f "$n"; fi
+            if [ -f "$n" ] && [ $(stat -c %s "$n") -gt 400000 ]; then (head -c 200000 "$n"; echo; echo "...gekuerzt..."; tail -c 20000 "$n") > "$n.part" && rm "$n"; fi
           done
-          grep -oiE 'href="[^"]*today[^"]*"' index.html | head -5 >> links.txt || true
-          ls -la >> status.txt
       - name: Ergebnis committen
         run: |
           git config user.name "github-actions"
