@@ -56,6 +56,10 @@ def felder(zeile):
     return teile, [teile[i] for i in range(3, len(teile), 2)]
 
 
+# 2015/2016: Temperatur als PT100-Widerstand (Ohm); Formel steht im Dateikopf
+FORMEL = re.compile(r"Air_temp in Celsius\s*=\s*([\d.]+)\s*\*\s*AIR_PT1\s*-\s*([\d.]+)", re.I)
+
+
 def spalten_finden(text):
     """Sucht in der Kopfzeile, in welcher Spalte Regen und Lufttemperatur stehen."""
     regen = temp = None
@@ -66,7 +70,7 @@ def spalten_finden(text):
                 n = name.upper()
                 if regen is None and n in ("RAINFALL", "RG1"):
                     regen = i
-                if temp is None and n in ("AIR_TEMP", "AIT"):
+                if temp is None and n in ("AIR_TEMP", "AIT", "AIR_PT1", "PLT"):
                     temp = i
     return regen, temp
 
@@ -79,7 +83,7 @@ def zahl(text):
     return None if wert >= FEHLT else wert
 
 
-def datei_auswerten(text, jahr, messungen, bericht):
+def datei_auswerten(text, jahr, messungen, bericht, formel):
     """Liest alle 30-Minuten-Werte einer .dat-Datei in das Dict `messungen`
     (Schlüssel = Zeitpunkt, damit doppelte Zeilen nur einmal zählen)."""
     regen_sp, temp_sp = spalten_finden(text)
@@ -87,6 +91,9 @@ def datei_auswerten(text, jahr, messungen, bericht):
         # Ohne Kopfzeile: Aufbau der aktuellen Logger-Dateien annehmen
         regen_sp, temp_sp = 1, 3
         bericht["ohne_kopf"] = bericht.get("ohne_kopf", 0) + 1
+    f = FORMEL.search(text)
+    if f:
+        formel[0] = (float(f.group(1)), float(f.group(2)))
     for zeile in text.splitlines():
         treffer = ZEILE.match(zeile)
         if not treffer:
@@ -101,6 +108,14 @@ def datei_auswerten(text, jahr, messungen, bericht):
             continue
         regen = zahl(werte[regen_sp])
         temp = zahl(werte[temp_sp])
+        # Werte um 80–130 sind Ohm (PT100) → mit der Formel aus dem Dateikopf in °C umrechnen
+        if temp is not None and 70 <= temp <= 140 and formel[0]:
+            a, b = formel[0]
+            temp = a * temp - b
+            bericht["ohm_umgerechnet"] = bericht.get("ohm_umgerechnet", 0) + 1
+        # -20.0 ist bei dieser Station ein Fehlerwert (Untergrenze des Fühlers)
+        if temp is not None and temp <= -20.0:
+            temp = None
         # Unplausible Werte verwerfen (Wartung, Stromausfall …)
         if regen is not None and not (0 <= regen <= 50):
             regen = None
@@ -134,8 +149,9 @@ def jahr_verarbeiten(jahr):
         (dbg / f"{jahr}.txt").write_text(f"Dateien: {len(texte)}  Spalten: {spalten_finden(texte[0])}\n" +
                                          "\n".join(texte[0].splitlines()[:22]) + "\n...\n" +
                                          "\n".join(texte[0].splitlines()[-3:]))
+    formel = [None]
     for text in texte:
-        datei_auswerten(text, jahr, messungen, bericht)
+        datei_auswerten(text, jahr, messungen, bericht, formel)
     bericht["dateien"] = len(texte)
 
     # 30-Minuten-Werte zu Tageswerten zusammenfassen
@@ -150,17 +166,25 @@ def jahr_verarbeiten(jahr):
                 temp += TEMP_KORREKTUR
             t["temps"].append(temp)
 
+    # Üblicher Messtakt: häufigste Anzahl Werte pro Tag (48 = halbstündlich, 24 = stündlich)
+    anzahl = [t["n_regen"] for t in tage.values() if t["n_regen"]]
+    takt = max(set(anzahl), key=anzahl.count) if anzahl else 48
+    bericht["werte_pro_tag"] = takt
+
     zeilen = []
     for datum in sorted(tage):
         t = tage[datum]
         temps = t["temps"]
+        if t["regen"] > 100:  # mehr als 100 mm/Tag: Messfehler (z. B. Defekt am Regenmesser)
+            t["n_regen"], t["regen"] = 0, 0.0
+            bericht["regen_verworfen"] = bericht.get("regen_verworfen", 0) + 1
         zeilen.append([
             datum.isoformat(),
             round(t["regen"], 1) if t["n_regen"] else None,       # Regen mm
             round(min(temps), 1) if temps else None,              # T min
             round(max(temps), 1) if temps else None,              # T max
             round(sum(temps) / len(temps), 1) if temps else None,  # T Mittel
-            t["n_regen"],                                        # Anzahl Halbstunden mit Regenwert (48 = vollständig)
+            round(min(1.0, t["n_regen"] / takt), 2),            # Vollständigkeit 0–1
         ])
     bericht["tage"] = len(zeilen)
     bericht["regen_summe"] = round(sum(z[1] or 0 for z in zeilen), 1)
@@ -186,7 +210,7 @@ def main():
         print(f"  {bericht}")
         if not zeilen:
             continue
-        datei.write_text(json.dumps({"jahr": jahr, "spalten": ["datum", "regen_mm", "tmin", "tmax", "tmittel", "n"],
+        datei.write_text(json.dumps({"jahr": jahr, "spalten": ["datum", "regen_mm", "tmin", "tmax", "tmittel", "vollst"],
                                      "tage": zeilen}, separators=(",", ":")))
         uebersicht[str(jahr)] = {"von": zeilen[0][0], "bis": zeilen[-1][0], **bericht}
 
