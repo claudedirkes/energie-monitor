@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<meta http-equiv="expires" content="0"/>
+<meta http-equiv="pragma" content="no-cache"/>
+<meta http-equiv="cache-control" content="no-cache"/>
+<title>Wetterdaten Luxemburg</title>
+<link rel="stylesheet" type="text/css" href="../css/luamstyles.css"/>
+</head>
+<body>
+<div id="page">
+	<div id="header">
+	<form name="frmInput" action="wetter.hh.pl" method="post">
+	<input type="hidden" name="c" value="92"/>
+	<input type="hidden" name="sid" value="010"/>
+	<input type="hidden" name="t" value="1,4,11,7"/>
+	<table border="0" cellspacing="1" cellpadding="0" rows="5" cols="9" width="100%">
+	<tr>
+		<td colspan="9" nowrap="nowrap"><span class="th2">Stundenmittelwerte des Tages</span></td>
+	</tr>
+	<tr><td colspan="9"><hr/></td></tr>
+	<tr>
+	<td width="5%">Station:</td>
+	<td width="5%" nowrap="nowrap"><b><span class="th3">Ettelbruck (254 m)</span></b></td>
+	<td width="5%" align="right">Jahr:</td>
+	<td width="5%">
+	<select name="y" class="auswahl3" size="1" title="Jahr" onchange="document.frmInput.submit();">
+				<option value="2026" selected>2026</option>
+				<option value="2025">2025</option>
+				<option value="2024">2024</option>
+				<option value="2023">2023</option>
+				<option value="2022">2022</option>
+				<option value="2021">2021</option>
+				<option value="2020">2020</option>
+				<option value="2019">2019</option>
+				<option value="2018">2018</option>
+				<option value="2017">2017</option>
+				<option value="2016">2016</option>
+				<option value="2015">2015</option>
+				<option value="2014">2014</option>
+				<option value="2013">2013</option>
+				<option value="2012">2012</option>
+				<option value="2011">2011</option>
+				<option value="2010">2010</option>
+				<option value="2009">2009</option>
+				<option value="2008">2008</option>
+				<option value="2007">2007</option>
+				<option value="2006">2006</option>
+				<option value="2005">2005</option>
+				<option value="2004">2004</option>
+	</select>
+	</td>
+	<td width="5%" align="right">Monat:</td>
+	<td width="5%">
+	<select name="m" class="auswahl3" size="1" title="Monat" onchange="document.frmInput.submit();">
+				<option value="10" selected>10</option>
+				<option value="09">09</option>
+				<option value="08">08</option>
+				<option value="07">07</option>
+				<option value="06">06</option>
+				<option value="05">05</option>
+				<option value="04">04</option>
+				<option value="03">03</option>
+				<option value="02">02</option>
+				<option value="01">01</option>
+	</select>
+	</td>
+	<td width="5%" align="right">Tag:</td>
+	<td width="5%">
+	<select name="d" class="auswahl3" size="1" title="Tag" onchange="document.frmInput.submit();">
+				<option value="03" selected>03</option>
+				<option value="02">02</option>
+				<option value="01">01</option>
+	</select>
+	</td>
+	<td valign="middle" align="right" nowrap="nowrap">&nbsp;
+	<input type="button" value="Aktualisieren" name="cmdUpdate" title="Aktualisieren..." onclick="document.frmInput.submit();">
+	</td>
+	</tr>
+	<tr>
+		<td colspan="3">&nbsp;</td>
+		<td colspan="6" style="padding-left:0px;"><input type="checkbox" class="checkbox" name="opt" value="1" onclick="document.frmInput.submit();"/> Ersatzwerte markieren</td>
+	</tr>
+	<tr><td colspan="9"><hr/></td></tr>
+	</table></form>
+	</div>
+	<div id="content" style="padding-left:4px;padding-right:4px;">
+<table border="0" cellspacing="1" cellpadding="1" cols="6" width="100%" style="background-color:#C0C0C0;">
+	<tr style="background-color:#EAEAEA">
+		<td colspan="6" style="font-weight:bold;padding-top:4px;padding-bottom:4px;color:#000000">Stundenmittelwerte Ettelbruck (254 m) : 03.10.2026</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td rowspan="2" style="font-weight:normal;vertical-align:top;text-align:center;" width="20">Zeit<br/>(MEZ)</td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Temp. (2 m)<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Temp. (20 cm)<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Niederschlag<br/><span style="font-weight:normal;">&#8721;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Luftfeuchte<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td rowspan="2" style="font-weight:normal;vertical-align:top;text-align:center;" width="20">Zeit<br/>(MEZ)</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td align="center" nowrap="nowrap">[°C]</td>
+		<td align="center" nowrap="nowrap">°C]</td>
+		<td align="center" nowrap="nowrap">[mm]</td>
+		<td align="center" nowrap="nowrap">[%]</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>00:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">10.2</td>
+		<td style="background-color:#FFF7DD;text-align:center;">9.9</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">93</td>
+		<td>00:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>01:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">9.3</td>
+		<td style="background-color:#FFF7DD;text-align:center;">9.0</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">96</td>
+		<td>01:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>02:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.8</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.3</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">97</td>
+		<td>02:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>03:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.3</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.9</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">98</td>
+		<td>03:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>04:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.8</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.6</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">98</td>
+		<td>04:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>05:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.6</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.2</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">98</td>
+		<td>05:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>06:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.3</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.8</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">98</td>
+		<td>06:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>07:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.9</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.1</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">99</td>
+		<td>07:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>08:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">8.3</td>
+		<td style="background-color:#FFF7DD;text-align:center;">9.3</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">99</td>
+		<td>08:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>09:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">11.0</td>
+		<td style="background-color:#FFF7DD;text-align:center;">13.2</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">86</td>
+		<td>09:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>10:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">14.7</td>
+		<td style="background-color:#FFF7DD;text-align:center;">17.4</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.1</td>
+		<td style="background-color:#CCFFCC;text-align:center;">72</td>
+		<td>10:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>11:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">16.8</td>
+		<td style="background-color:#FFF7DD;text-align:center;">20.3</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">68</td>
+		<td>11:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>12:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">18.4</td>
+		<td style="background-color:#FFF7DD;text-align:center;">21.6</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">63</td>
+		<td>12:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>13:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">19.8</td>
+		<td style="background-color:#FFF7DD;text-align:center;">22.2</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">58</td>
+		<td>13:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>14:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">20.7</td>
+		<td style="background-color:#FFF7DD;text-align:center;">22.2</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">56</td>
+		<td>14:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>15:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">21.7</td>
+		<td style="background-color:#FFF7DD;text-align:center;">22.7</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">50</td>
+		<td>15:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>16:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">20.6</td>
+		<td style="background-color:#FFF7DD;text-align:center;">21.1</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">52</td>
+		<td>16:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>17:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">20.2</td>
+		<td style="background-color:#FFF7DD;text-align:center;">20.2</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">55</td>
+		<td>17:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>18:00</td>
+		<td style="background-color:#FFF7DD;text-align:center;">19.6</td>
+		<td style="background-color:#FFF7DD;text-align:center;">18.1</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.0</td>
+		<td style="background-color:#CCFFCC;text-align:center;">58</td>
+		<td>18:00</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td rowspan="2" style="font-weight:normal;vertical-align:bottom;text-align:center;">&#160;</td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Temp. (2 m)<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Temp. (20 cm)<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Niederschlag<br/><span style="font-weight:normal;">&#8721;</span></td>
+		<td style="font-weight:normal;vertical-align:top;text-align:center;" nowrap="nowrap">Luftfeuchte<br/><span style="font-weight:normal;">&#216;</span></td>
+		<td rowspan="2" style="font-weight:normal;vertical-align:bottom;text-align:center;">&#160;</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td align="center" nowrap="nowrap">[°C]</td>
+		<td align="center" nowrap="nowrap">°C]</td>
+		<td align="center" nowrap="nowrap">[mm]</td>
+		<td align="center" nowrap="nowrap">[%]</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td colspan="6" style="background-color:#FFFFFF;font-size:2px;">&#160;</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>&#216;</td>
+		<td style="background-color:#FFF7DD;text-align:center;">13.8</td>
+		<td style="background-color:#FFF7DD;text-align:center;">14.5</td>
+		<td style="background-color:#EEFFFF;text-align:center;">-</td>
+		<td style="background-color:#CCFFCC;text-align:center;">78</td>
+		<td>&#216;</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>Min.</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.9</td>
+		<td style="background-color:#FFF7DD;text-align:center;">7.1</td>
+		<td style="background-color:#EEFFFF;text-align:center;">-</td>
+		<td style="background-color:#CCFFCC;text-align:center;">-</td>
+		<td>Min.</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>Max.</td>
+		<td style="background-color:#FFF7DD;text-align:center;">21.7</td>
+		<td style="background-color:#FFF7DD;text-align:center;">22.7</td>
+		<td style="background-color:#EEFFFF;text-align:center;">-</td>
+		<td style="background-color:#CCFFCC;text-align:center;">-</td>
+		<td>Max.</td>
+	</tr>
+	<tr style="background-color:#EAEAEA">
+		<td>&#8721;</td>
+		<td style="background-color:#FFF7DD;text-align:center;">-</td>
+		<td style="background-color:#FFF7DD;text-align:center;">-</td>
+		<td style="background-color:#EEFFFF;text-align:center;">0.1</td>
+		<td style="background-color:#CCFFCC;text-align:center;">-</td>
+		<td>&#8721;</td>
+	</tr>
+	<tr style="background-color:#FFFFFF">
+		<td colspan="6" style="background-color:#FFFFFF;">
+		<table border="0" cellspacing="1" cellpadding="1" cols="2" width="100%" style="background-color:#FFFFFF">
+			<tr style="background-color:#FFFFFF">
+				<td style="background-color:#FFFFFF;text-align:left;height:24px;vertical-align:top" nowrap="nowrap">&#160;</td>
+				<td style="background-color:#FFFFFF;text-align:right;height:24px;vertical-align:top" nowrap="nowrap">Quelle: Agrarmeteorologie Luxemburg, alle Angaben ohne Gew&#228;hr!<br/>Zuletzt ge&#228;ndert: 03.10.26 - 19:29 Uhr</td>
+			</tr>
+		</table>		</td>
+	</tr>
+</table>
+<div><span style="font-size:4pt;">&#160;</span></div>
+	</div>
+</div>
+</body>
+</html>
