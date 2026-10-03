@@ -70,6 +70,12 @@
   .msg{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:14px;border:1px solid var(--axis);color:var(--ink2)}
   .msg.err{border-color:var(--error);color:var(--error)}
   .note{font-size:12px;color:var(--muted);margin-top:16px}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 8px}
+  .tablewrap{max-height:420px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
+  th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--surface)}
   .hidden{display:none!important}
   @media (max-width:640px){ .now{grid-template-columns:1fr} .now .big{font-size:44px} .chartbox{height:210px} }
 </style>
@@ -165,7 +171,14 @@
   <div class="card section" id="yearsCard">
     <h2>Niederschlag pro Jahr seit 1994 – Messstation Diekirch</h2>
     <div class="kpis" id="yKpis"></div>
+    <div class="legend hidden" id="yLeg"><span style="--c:var(--rain)">Station</span><span style="--c:var(--prev)">Modell (gleiche Tage)</span></div>
     <div class="chartbox"><canvas id="cYears"></canvas></div>
+  </div>
+
+  <div class="card section hidden" id="flagCard">
+    <h2>Regenmessung fraglich – Abgleich Station gegen Modell</h2>
+    <p class="hint" id="flagCount"></p>
+    <div class="tablewrap"><table id="flagTbl"></table></div>
   </div>
 
   <p class="note">
@@ -272,7 +285,7 @@ async function loadForecast() {
 
 // ── Historische Tageswerte (Archiv + letzte Tage aus der Vorhersage-API) ──
 const DAILY_HIST = 'weather_code,temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,precipitation_hours,sunshine_duration,wind_gusts_10m_max';
-async function loadDaily(from, to) {
+async function loadDaily(from, to, vars = DAILY_HIST) {
   const t = today();
   if (to > t) to = t;
   const archEnd = addDays(t, -6);          // Archiv hat ca. 5 Tage Verzögerung
@@ -280,13 +293,13 @@ async function loadDaily(from, to) {
   if (from <= archEnd) parts.push(['https://archive-api.open-meteo.com/v1/archive', from, to < archEnd ? to : archEnd]);
   if (to > archEnd) parts.push(['https://api.open-meteo.com/v1/forecast', from > archEnd ? from : addDays(archEnd, 1), to]);
   const res = await Promise.all(parts.map(([host, a, b]) => getJSON(host + '?latitude=' + LAT + '&longitude=' + LON +
-    '&timezone=' + encodeURIComponent(TZ) + '&start_date=' + a + '&end_date=' + b + '&daily=' + DAILY_HIST)));
+    '&timezone=' + encodeURIComponent(TZ) + '&start_date=' + a + '&end_date=' + b + '&daily=' + vars)));
   const rows = [];
-  res.forEach(j => j.daily.time.forEach((d, i) => rows.push({
-    d, code: j.daily.weather_code[i], tmax: j.daily.temperature_2m_max[i], tmin: j.daily.temperature_2m_min[i],
-    tmean: j.daily.temperature_2m_mean[i], rain: j.daily.precipitation_sum[i], rainH: j.daily.precipitation_hours[i],
-    sun: j.daily.sunshine_duration[i], gust: j.daily.wind_gusts_10m_max[i]
-  })));
+  res.forEach(j => { const D = j.daily; j.daily.time.forEach((d, i) => rows.push({
+    d, code: D.weather_code?.[i] ?? null, tmax: D.temperature_2m_max?.[i] ?? null, tmin: D.temperature_2m_min?.[i] ?? null,
+    tmean: D.temperature_2m_mean?.[i] ?? null, rain: D.precipitation_sum?.[i] ?? null, rainH: D.precipitation_hours?.[i] ?? null,
+    sun: D.sunshine_duration?.[i] ?? null, gust: D.wind_gusts_10m_max?.[i] ?? null
+  })); });
   return rows.filter(r => r.rain != null || r.tmax != null);
 }
 
@@ -327,7 +340,49 @@ async function loadSource(src, from, to) {
   const inc = rows.filter(r => r.vollst < 0.8).length;
   if (inc) info.push(`${inc} Tag(e) nur teilweise gemessen (z. B. Wartung) – Summen dort eher zu niedrig.`);
   if (rows.some(r => r.d >= '2014-01-01' && r.d <= '2016-12-31')) info.push('Temperaturen 2014–2016 sind umgerechnet und unsicher.');
+  const fl = flaggedIn(from, to);
+  if (fl.length) info.push(`⚠ Regenmessung fraglich in: ${fl.slice(0, 8).map(monthLabel).join(', ')}${fl.length > 8 ? ` und ${fl.length - 8} weiteren Monaten` : ''} (Abgleich mit Modell).`);
   return { rows, info };
+}
+
+// ── Plausibilitätsprüfung: Station gegen Modell, je Monat ──
+// Verglichen wird nur über die Tage, an denen die Station einen Regenwert hat.
+let check = null;   // { months: {'JJJJ-MM': {st, mo, typ}}, years: {'JJJJ': {st, mo, n}} }
+const MIN_MODELL = 20, FAKTOR_NIEDRIG = 0.5, MIN_HOCH = 40, FAKTOR_HOCH = 2;
+async function buildCheck() {
+  const ys = Object.keys(lcdIndex.jahre);
+  const files = await Promise.all(ys.map(lcdYear));
+  const first = Object.values(lcdIndex.jahre)[0].von, last = lcdLast();
+  const model = new Map((await loadDaily(first, last, 'precipitation_sum')).map(r => [r.d, r.rain]));
+  const months = {}, years = {};
+  files.forEach(f => f && f.tage.forEach(([d, rain]) => {
+    if (rain == null || model.get(d) == null) return;
+    const k = d.slice(0, 7), y = d.slice(0, 4);
+    const m = months[k] || (months[k] = { st: 0, mo: 0, typ: null });
+    m.st += rain; m.mo += model.get(d);
+    const yy = years[y] || (years[y] = { st: 0, mo: 0, n: 0 });
+    yy.st += rain; yy.mo += model.get(d);
+  }));
+  for (const k in months) {
+    const m = months[k];
+    if (m.mo >= MIN_MODELL && m.st < FAKTOR_NIEDRIG * m.mo) m.typ = 'niedrig';
+    else if (m.st >= MIN_HOCH && m.st > FAKTOR_HOCH * m.mo) m.typ = 'hoch';
+    if (m.typ) years[k.slice(0, 4)].n++;
+  }
+  check = { months, years };
+}
+const monthLabel = k => MONATE[Number(k.slice(5, 7)) - 1] + ' ' + k.slice(0, 4);
+function flagText(k) {
+  const m = check && check.months[k];
+  if (!m) return [];
+  const t = [`Modell: ${nf(m.mo, 1)} mm (gleiche Tage)`];
+  if (m.typ === 'niedrig') t.push('⚠ Messung fraglich – Station deutlich niedriger als Modell');
+  if (m.typ === 'hoch') t.push('⚠ Messung auffällig hoch gegenüber Modell');
+  return t;
+}
+function flaggedIn(from, to) {
+  if (!check) return [];
+  return Object.keys(check.months).filter(k => check.months[k].typ && k >= from.slice(0, 7) && k <= to.slice(0, 7)).sort();
 }
 
 function preset(p) {
@@ -413,7 +468,7 @@ function renderHistory(rows, src) {
     labels = ks.map(k => MONATE[Number(k.slice(5)) - 1] + ' ' + k.slice(2, 4));
     rain = ks.map(k => mm.get(k).rain);
     tmax = ks.map(k => mm.get(k).tmax); tmin = ks.map(k => mm.get(k).tmin);
-    extra = i => [`Regentage: ${mm.get(ks[i]).rd} von ${mm.get(ks[i]).days}`];
+    extra = i => [`Regentage: ${mm.get(ks[i]).rd} von ${mm.get(ks[i]).days}`, ...(src === 'station' ? flagText(ks[i]) : [])];
     $('tRain').textContent = 'Niederschlag pro Monat (mm)';
     $('tTemp').textContent = 'Höchst- und Tiefstwert pro Monat (°C)';
   } else {
@@ -421,7 +476,8 @@ function renderHistory(rows, src) {
     rain = rows.map(r => r.rain); tmax = rows.map(r => r.tmax); tmin = rows.map(r => r.tmin);
     extra = i => src === 'model'
       ? [wIcon(rows[i].code) + ' ' + wText(rows[i].code), `Regen-Stunden: ${nf(rows[i].rainH, 0)}`]
-      : [`Ø ${nf(rows[i].tmean, 1)} °C`, `gemessen: ${nf(rows[i].vollst * 100, 0)} % des Tages`];
+      : [`Ø ${nf(rows[i].tmean, 1)} °C`, `gemessen: ${nf(rows[i].vollst * 100, 0)} % des Tages`,
+         ...(check && check.months[rows[i].d.slice(0, 7)]?.typ ? ['⚠ Regenmessung in diesem Monat fraglich'] : [])];
     $('tRain').textContent = 'Niederschlag pro Tag (mm)';
     $('tTemp').textContent = 'Höchst- und Tiefstwert pro Tag (°C)';
   }
@@ -465,7 +521,15 @@ $('mLoad').addEventListener('click', async () => {
     drawChart('cMonths', 'bar', MONATE, [
       { label: String(y - 1), data: sums[y - 1], color: css('--prev') },
       { label: String(y), data: sums[y], color: css('--rain') }
-    ], 'mm', i => sums[y][i] != null && sums[y - 1][i] ? [`Änderung: ${sums[y][i] >= sums[y - 1][i] ? '+' : ''}${nf((sums[y][i] / sums[y - 1][i] - 1) * 100, 0)} %`] : []);
+    ], 'mm', i => {
+      const k = y + '-' + String(i + 1).padStart(2, '0'), kp = (y - 1) + '-' + String(i + 1).padStart(2, '0');
+      const t = sums[y][i] != null && sums[y - 1][i] ? [`Änderung: ${sums[y][i] >= sums[y - 1][i] ? '+' : ''}${nf((sums[y][i] / sums[y - 1][i] - 1) * 100, 0)} %`] : [];
+      if ($('mSrc').value === 'station' && check) {
+        if (check.months[kp]?.typ) t.push(`⚠ ${y - 1}: Messung fraglich`);
+        if (check.months[k]?.typ) t.push(`⚠ ${y}: Messung fraglich`);
+      }
+      return t;
+    });
     m.className = 'msg hidden';
     $('mResult').classList.remove('hidden');
   } catch (e) {
@@ -508,18 +572,41 @@ function drawChart(id, type, labels, series, unit, extra, opts = {}) {
 function renderYears() {
   const J = lcdIndex.jahre, ys = Object.keys(J);
   const curY = String(new Date().getFullYear());
-  const full = ys.filter(y => J[y].von.endsWith('-01-01') && J[y].bis.endsWith('-12-31') && y !== curY);
+  const complete = ys.filter(y => J[y].von.endsWith('-01-01') && J[y].bis.endsWith('-12-31') && y !== curY);
+  // für Statistik nur Jahre ohne fragliche Monate (sobald der Abgleich da ist)
+  const clean = check ? complete.filter(y => !(check.years[y] && check.years[y].n)) : complete;
+  const full = clean.length >= 5 ? clean : complete;   // zu wenige saubere Jahre → alle vollständigen nehmen
   const avg = full.reduce((a, y) => a + J[y].regen_summe, 0) / (full.length || 1);
   const wet = full.reduce((a, y) => J[y].regen_summe > J[a].regen_summe ? y : a, full[0]);
   const dry = full.reduce((a, y) => J[y].regen_summe < J[a].regen_summe ? y : a, full[0]);
   const kpi = (l, v, u, h) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="h">${h || ''}</div></div>`;
   $('yKpis').innerHTML =
-    kpi('Ø pro Jahr', nf(avg, 0), 'mm', `${full[0]}–${full[full.length - 1]}`) +
+    kpi('Ø pro Jahr', nf(avg, 0), 'mm', check && full === clean ? `${full.length} Jahre ohne fragliche Monate` : `${full[0]}–${full[full.length - 1]}`) +
     kpi('Nassestes Jahr', nf(J[wet].regen_summe, 0), 'mm', wet) +
     kpi('Trockenstes Jahr', nf(J[dry].regen_summe, 0), 'mm', dry) +
-    kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert');
-  drawChart('cYears', 'bar', ys, [{ data: ys.map(y => J[y].regen_summe), color: css('--rain') }], 'mm',
-    i => full.includes(ys[i]) ? [] : [`unvollständig: ${fmtDate(J[ys[i]].von)} – ${fmtDate(J[ys[i]].bis)}`]);
+    kpi('Messwerte bis', fmtDate(lcdLast()), '', 'wöchentlich aktualisiert') +
+    (check ? kpi('Fragliche Monate', Object.values(check.months).filter(m => m.typ).length, '', 'Abgleich mit Modell') : '');
+  const series = [{ label: 'Station', data: ys.map(y => J[y].regen_summe), color: css('--rain') }];
+  if (check) series.push({ label: 'Modell', data: ys.map(y => check.years[y] ? Math.round(check.years[y].mo) : null), color: css('--prev') });
+  $('yLeg').classList.toggle('hidden', !check);
+  drawChart('cYears', 'bar', ys, series, 'mm', i => {
+    const y = ys[i], t = [];
+    if (!complete.includes(y)) t.push(`unvollständig: ${fmtDate(J[y].von)} – ${fmtDate(J[y].bis)}`);
+    if (check && check.years[y] && check.years[y].n) t.push(`⚠ ${check.years[y].n} Monat(e) mit fraglicher Messung`);
+    return t;
+  });
+  if (check) renderFlagList();
+}
+
+function renderFlagList() {
+  const ks = Object.keys(check.months).filter(k => check.months[k].typ).sort().reverse();
+  $('flagCard').classList.remove('hidden');
+  $('flagCount').textContent = ks.length
+    ? `${ks.length} Monate, in denen die Station deutlich vom Modell abweicht (Modell ≥ ${MIN_MODELL} mm und Station < ${FAKTOR_NIEDRIG * 100} % davon, oder Station ≥ ${MIN_HOCH} mm und > ${FAKTOR_HOCH}× Modell).`
+    : 'Keine auffälligen Monate gefunden.';
+  $('flagTbl').innerHTML = ks.length ? `<thead><tr><th>Monat</th><th>Station</th><th>Modell</th><th>Station/Modell</th><th>Einschätzung</th></tr></thead><tbody>` +
+    ks.map(k => { const m = check.months[k]; return `<tr><td>${monthLabel(k)}</td><td>${nf(m.st, 1)} mm</td><td>${nf(m.mo, 1)} mm</td>
+      <td>${nf(m.mo ? m.st / m.mo * 100 : 0, 0)} %</td><td>${m.typ === 'niedrig' ? 'zu niedrig – evtl. Ausfall/Verstopfung' : 'auffällig hoch'}</td></tr>`; }).join('') + '</tbody>' : '';
 }
 
 // ── Start ──
@@ -531,6 +618,10 @@ fetch('data/lcd/index.json').then(r => r.ok ? r.json() : null).catch(() => null)
     $('lcdInfo').textContent = `Messwerte der Station in Diekirch von ${fmtDate(Object.values(idx.jahre)[0].von)} bis ${fmtDate(last)}.`;
     $('to').value = last; $('from').value = addDays(last, -29);   // Start: die letzten 30 Tage mit Messwerten
     renderYears();
+    buildCheck().then(() => {
+      renderYears();
+      if ($('src').value === 'station') loadHistory();
+    }).catch(e => console.warn('Abgleich nicht möglich:', e));
   } else {
     $('src').value = 'model'; $('mSrc').value = 'model';
     $('yearsCard').classList.add('hidden');
