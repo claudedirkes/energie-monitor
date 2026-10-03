@@ -1,0 +1,39 @@
+# Einmaliger Test: Kann GitHub die Daten der Station meteoLCD (Diekirch) laden?
+# Lädt die Startseite + Beispieldateien und legt sie unter data/probe/ ab.
+name: Probe meteoLCD
+
+on:
+  push:
+    paths: ['.github/workflows/probe-lcd.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dateien laden
+        run: |
+          mkdir -p data/probe
+          cd data/probe
+          curl -sS -A "Mozilla/5.0" -o index.html -w "index %{http_code}\n" https://meteo.lcd.lu/ > status.txt 2>&1 || true
+          # alle Links auf .dat/.xls(x)/.zip sammeln
+          grep -oiE 'href="[^"]+\.(dat|xlsx?|zip|txt|csv)"' index.html | sed -E 's/href="//I; s/"$//' > links.txt || true
+          # zwei Monatsdateien (2025 + 2026) und die "today"-Seite probieren
+          for f in $(grep -iE '(^|/)2025/.*\.dat$|25\.dat$' links.txt | tail -1) $(grep -iE '(^|/)2026/.*\.dat$|26\.dat$' links.txt | tail -1); do
+            case "$f" in http*) u="$f";; /*) u="https://meteo.lcd.lu$f";; *) u="https://meteo.lcd.lu/$f";; esac
+            n=$(basename "$f")
+            curl -sS -A "Mozilla/5.0" -o "$n" -w "$n %{http_code} %{size_download}\n" "$u" >> status.txt 2>&1 || true
+          done
+          grep -oiE 'href="[^"]*today[^"]*"' index.html | head -5 >> links.txt || true
+          ls -la >> status.txt
+      - name: Ergebnis committen
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/probe
+          git commit -m "Probe meteoLCD: Testdateien" || echo "nichts zu committen"
+          git push
