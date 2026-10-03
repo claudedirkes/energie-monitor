@@ -1,0 +1,31 @@
+# Holt jede Woche die Messwerte der Station meteoLCD (Diekirch)
+# und speichert Tageswerte unter data/lcd/ für die Webseite.
+name: Messdaten Diekirch importieren
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'     # jeden Montag ca. 06:17 Uhr (Luxemburg, Sommerzeit)
+  workflow_dispatch:         # von Hand: Actions → "Messdaten Diekirch importieren" → Run workflow
+  push:
+    paths: ['scripts/lcd_import.py', '.github/workflows/lcd-import.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Daten laden und umrechnen
+        run: python scripts/lcd_import.py
+      - name: Ergebnis speichern
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/lcd
+          git commit -m "Messdaten meteoLCD aktualisiert" || echo "keine Änderungen"
+          git push
