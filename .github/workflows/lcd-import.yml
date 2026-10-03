@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Daten laden und umrechnen
-        run: python scripts/lcd_import.py
+        run: python scripts/lcd_import.py --debug
       - name: Ergebnis speichern
         run: |
           git config user.name "github-actions"

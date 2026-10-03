@@ -128,6 +128,12 @@ def jahr_verarbeiten(jahr):
             inhalt = laden(f"{BASIS}{jahr}/{m}{kurz}.dat")
             if inhalt:
                 texte.append(inhalt.decode("latin-1"))
+    if texte and "--debug" in sys.argv:
+        dbg = ZIEL / "debug"
+        dbg.mkdir(exist_ok=True)
+        (dbg / f"{jahr}.txt").write_text(f"Dateien: {len(texte)}  Spalten: {spalten_finden(texte[0])}\n" +
+                                         "\n".join(texte[0].splitlines()[:22]) + "\n...\n" +
+                                         "\n".join(texte[0].splitlines()[-3:]))
     for text in texte:
         datei_auswerten(text, jahr, messungen, bericht)
     bericht["dateien"] = len(texte)
