@@ -210,12 +210,6 @@
     <div class="chartbox"><canvas id="cYears"></canvas></div>
   </div>
 
-  <div class="card section hidden" id="flagCard">
-    <h2>Regenmessung Diekirch fraglich – Abgleich mit Ettelbruck bzw. Modell</h2>
-    <p class="hint" id="flagCount"></p>
-    <div class="tablewrap"><table id="flagTbl"></table></div>
-  </div>
-
   <p class="note">
     <b>Messwerte:</b> meteoLCD – Meteorological Station of the Lycée classique Diekirch, L-9233 Diekirch
     (<a href="https://meteo.lcd.lu" target="_blank" rel="noopener">meteo.lcd.lu</a>), Werte alle 30 Minuten (bis 1995 stündlich),
@@ -659,19 +653,8 @@ function renderYears() {
     if (check && check.years[y] && check.years[y].n) t.push(`⚠ ${check.years[y].n} Monat(e) mit fraglicher Messung`);
     return t;
   });
-  if (check) renderFlagList();
 }
 
-function renderFlagList() {
-  const ks = Object.keys(check.months).filter(k => check.months[k].typ).sort().reverse();
-  $('flagCard').classList.remove('hidden');
-  $('flagCount').textContent = ks.length
-    ? `${ks.length} Monate, in denen Diekirch deutlich vom Vergleich abweicht. Vergleich = Messung Ettelbruck (ab 2004), davor Modell. Regel: Vergleich ≥ ${MIN_MODELL} mm und Diekirch < ${FAKTOR_NIEDRIG * 100} % davon, oder Diekirch ≥ ${MIN_HOCH} mm und > ${FAKTOR_HOCH}× Vergleich.`
-    : 'Keine auffälligen Monate gefunden.';
-  $('flagTbl').innerHTML = ks.length ? `<thead><tr><th>Monat</th><th>Diekirch</th><th>Vergleich</th><th>Quelle</th><th>Verhältnis</th><th>Einschätzung</th></tr></thead><tbody>` +
-    ks.map(k => { const m = check.months[k]; return `<tr><td>${monthLabel(k)}</td><td>${nf(m.st, 1)} mm</td><td>${nf(m.mo, 1)} mm</td><td>${m.nE >= m.nM ? 'Ettelbruck' : 'Modell'}</td>
-      <td>${nf(m.mo ? m.st / m.mo * 100 : 0, 0)} %</td><td>${m.typ === 'niedrig' ? 'zu niedrig – evtl. Ausfall/Verstopfung' : 'auffällig hoch'}</td></tr>`; }).join('') + '</tbody>' : '';
-}
 
 // ── Live-Messwerte ──
 const minAlt = d => Math.round((Date.now() - d.getTime()) / 60000);
@@ -729,7 +712,6 @@ async function loadAll(force) {
     bustTag = String(Date.now());
     for (const k in lcdCache) delete lcdCache[k];
     check = null;
-    $('flagCard').classList.add('hidden');
   }
   $('err').classList.add('hidden');
   loadLive().catch(e => console.warn('Live-Werte:', e));
