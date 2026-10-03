@@ -106,6 +106,7 @@
       <div class="big" id="nowT">–</div>
       <div class="cond" id="nowCond"></div>
       <div class="feel" id="nowFeel"></div>
+      <div class="feel" style="color:var(--muted)">berechnet für Diekirch, nicht gemessen</div>
     </div>
     <div class="facts" id="nowFacts"></div>
   </div>
@@ -254,7 +255,7 @@ async function loadForecast() {
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunrise,sunset,sunshine_duration';
   const j = await getJSON(url);
   const c = j.current;
-  $('stand').textContent = 'Stand: ' + c.time.slice(8, 10) + '.' + c.time.slice(5, 7) + '.' + c.time.slice(0, 4) + ', ' + c.time.slice(11) + ' Uhr';
+  $('stand').textContent = 'Stand: ' + c.time.slice(8, 10) + '.' + c.time.slice(5, 7) + '.' + c.time.slice(0, 4) + ', ' + c.time.slice(11) + ' Uhr · Modellwert (Open-Meteo), keine Messung';
   $('nowT').innerHTML = nf(c.temperature_2m, 1) + '<small> °C</small>';
   $('nowCond').textContent = wIcon(c.weather_code) + ' ' + wText(c.weather_code);
   $('nowFeel').textContent = 'gefühlt ' + nf(c.apparent_temperature, 1) + ' °C';
