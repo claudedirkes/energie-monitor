@@ -1,1 +1,0 @@
-https://dlr-web-daten1.aspdienste.de/cgi-bin/wetter.dd.pl?c=92&sid=10&t=1,4,11,7,51#
