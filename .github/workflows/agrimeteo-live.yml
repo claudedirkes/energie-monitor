@@ -26,16 +26,11 @@ jobs:
           python-version: '3.12'
       - name: Messwerte laden
         run: python scripts/agrimeteo_live.py
-      - name: 'Einmalig - Aufbau der Tageswert-Seiten ansehen'
+      - name: 'Einmalig - Spalten der Tagestabelle testen'
         run: |
-          mkdir -p data/live/debug && cd data/live/debug
-          B='https://www.agrimeteo.lu/Internet/AM/NotesLUAM.nsf/(XP_StationABC)/65c497a9d9603796c12577510033ad0c?OpenDocument'
-          for r in 3.4 3.5 3.9; do
-            curl -sSL -A "Mozilla/5.0" -o "seite_$r.html" "$B&TableRow=$r" || true
-            grep -oE 'https?://dlr-web-daten[^"'"'"' ]+' "seite_$r.html" | head -3 > "links_$r.txt" || true
-            u=$(head -1 "links_$r.txt"); [ -n "$u" ] && curl -sSL -A "Mozilla/5.0" -o "daten_$r.html" "$u" || true
-          done
-          ls -la
+          rm -rf data/live/debug && mkdir -p data/live/debug && cd data/live/debug
+          sleep 10
+          curl -sSL -A "Mozilla/5.0" -o dd_alle.html "https://dlr-web-daten1.aspdienste.de/cgi-bin/wetter.dd.pl?c=92&sid=010&t=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&y=2026&m=09" || true
       - name: Speichern
         run: |
           git config user.name "github-actions"

@@ -13,6 +13,8 @@ Start:  python scripts/agrimeteo_live.py
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -99,9 +101,17 @@ def main():
         "stationen": {},
     }
     fehler = 0
-    for sid, name in STATIONEN.items():
+    for nr, (sid, name) in enumerate(STATIONEN.items()):
+        if nr:
+            time.sleep(8)  # Server begrenzt schnelle Abfragen (HTTP 429)
         try:
-            werte = zehn_minuten(sid)
+            try:
+                werte = zehn_minuten(sid)
+            except urllib.error.HTTPError as e:
+                if e.code != 429:
+                    raise
+                time.sleep(30)  # zu viele Anfragen → kurz warten, dann ein zweites Mal
+                werte = zehn_minuten(sid)
             ergebnis["stationen"][name] = {"sid": sid, "werte": werte}
             print(f"{name}: {len(werte)} Werte, neuester {werte[-1]['zeit'] if werte else '–'}")
         except Exception as e:  # Station nicht erreichbar → beim nächsten Lauf erneut
