@@ -1,0 +1,35 @@
+# Test: Kann ein GitHub-Server die Leneda-API erreichen?
+# Wird nur von Hand gestartet (Actions → Leneda-Test → Run workflow).
+# Gibt nur HTTP-Status und Anzahl der Messwerte aus – keine Verbrauchswerte,
+# weil die Protokolle in einem öffentlichen Repo für alle sichtbar sind.
+name: Leneda-Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Strom von gestern bei Leneda abfragen
+        env:
+          KEY: ${{ secrets.LENEDA_API_KEY }}
+          EID: ${{ secrets.LENEDA_ENERGY_ID }}
+          POD: ${{ secrets.STROM_POD }}
+        run: |
+          D=$(date -u -d yesterday +%F)
+          echo "Testtag: $D"
+          echo "Land des GitHub-Servers: $(curl -s https://ipinfo.io/country)"
+          for BASE in https://api.leneda.eu/api https://api.leneda.lu/api; do
+            CODE=$(curl -s -o body.txt -w '%{http_code}' -G "$BASE/metering-points/$POD/time-series" \
+              --data-urlencode "startDateTime=${D}T00:00:00Z" \
+              --data-urlencode "endDateTime=${D}T23:59:59Z" \
+              --data-urlencode "obisCode=1-1:1.29.0" \
+              -H "X-API-KEY: $KEY" -H "X-ENERGY-ID: $EID" -H "Accept: application/json")
+            echo "$BASE  →  HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "   Anzahl Messwerte: $(grep -o '"startedAt"' body.txt | wc -l)"
+            else
+              echo "   Antwort: $(head -c 120 body.txt | tr -d '\n')"
+            fi
+          done
