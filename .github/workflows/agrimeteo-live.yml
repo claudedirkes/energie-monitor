@@ -1,0 +1,45 @@
+# Holt alle 30 Minuten die aktuellen Messwerte von AgriMeteo Ettelbruck und Bettendorf.
+# (GitHub startet geplante Jobs oft mit einigen Minuten Verspätung.)
+name: Live-Messwerte AgriMeteo
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  push:
+    paths: ['scripts/agrimeteo_live.py', '.github/workflows/agrimeteo-live.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daten-commit
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Messwerte laden
+        run: python scripts/agrimeteo_live.py
+      - name: Einmalig: Aufbau der Tageswert-Seiten ansehen
+        run: |
+          mkdir -p data/live/debug && cd data/live/debug
+          B='https://www.agrimeteo.lu/Internet/AM/NotesLUAM.nsf/(XP_StationABC)/65c497a9d9603796c12577510033ad0c?OpenDocument'
+          for r in 3.4 3.5 3.9; do
+            curl -sSL -A "Mozilla/5.0" -o "seite_$r.html" "$B&TableRow=$r" || true
+            grep -oE 'https?://dlr-web-daten[^"'"'"' ]+' "seite_$r.html" | head -3 > "links_$r.txt" || true
+            u=$(head -1 "links_$r.txt"); [ -n "$u" ] && curl -sSL -A "Mozilla/5.0" -o "daten_$r.html" "$u" || true
+          done
+          ls -la
+      - name: Speichern
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/live
+          git commit -m "Live-Messwerte AgriMeteo" || exit 0
+          git pull --rebase -q && git push
